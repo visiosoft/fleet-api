@@ -1,0 +1,252 @@
+/**
+ * Database configuration and connection handling
+ * Includes fallback to mock data when MongoDB is not available
+ */
+const { MongoClient } = require('mongodb');
+require('dotenv').config();
+
+// Import mock data for offline/testing use
+const mockData = require('./mock-data');
+
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI;
+const DB_NAME = process.env.DB_NAME || 'fleet-management';
+
+// Collections
+const COLLECTIONS = {
+  drivers: 'drivers',
+  vehicles: 'vehicles',
+  maintenance: 'maintenance',
+  fuel: 'fuel',
+  contracts: 'contracts',
+};
+
+// DB connection instance
+let dbInstance = null;
+let client = null;
+let useMockData = false;
+
+/**
+ * Mock collection class that mimics MongoDB Collection API
+ */
+class MockCollection {
+  constructor(name, data) {
+    this.name = name;
+    this.data = [...data]; // Clone the data to avoid mutations affecting the source
+  }
+
+  async find(query = {}) {
+    // Simple implementation of find with filtering
+    let results = this.data;
+    
+    // Apply basic filtering (exact matches only)
+    if (Object.keys(query).length > 0) {
+      results = results.filter(item => {
+        return Object.entries(query).every(([key, value]) => {
+          return item[key] === value;
+        });
+      });
+    }
+    
+    // Return object with toArray method to match MongoDB API
+    return {
+      toArray: async () => results
+    };
+  }
+
+  async findOne(query = {}) {
+    // Handle _id queries specially since ObjectId comparison is not straightforward
+    if (query._id) {
+      const idStr = query._id.toString();
+      return this.data.find(item => item._id.toString() === idStr) || null;
+    }
+    
+    // Simple implementation for other queries
+    return this.data.find(item => {
+      return Object.entries(query).every(([key, value]) => {
+        return item[key] === value;
+      });
+    }) || null;
+  }
+
+  async insertOne(document) {
+    // Add _id if not present
+    if (!document._id) {
+      document._id = require('mongodb').ObjectId();
+    }
+    
+    this.data.push(document);
+    return {
+      acknowledged: true,
+      insertedId: document._id
+    };
+  }
+
+  async updateOne(filter, update) {
+    const index = this.data.findIndex(item => {
+      if (filter._id) {
+        return item._id.toString() === filter._id.toString();
+      }
+      return Object.entries(filter).every(([key, value]) => {
+        return item[key] === value;
+      });
+    });
+
+    if (index === -1) {
+      return { matchedCount: 0, modifiedCount: 0 };
+    }
+
+    // Handle $set operator
+    if (update.$set) {
+      this.data[index] = {
+        ...this.data[index],
+        ...update.$set
+      };
+    }
+
+    return { matchedCount: 1, modifiedCount: 1 };
+  }
+
+  async deleteOne(filter) {
+    const initialLength = this.data.length;
+    
+    if (filter._id) {
+      this.data = this.data.filter(item => item._id.toString() !== filter._id.toString());
+    } else {
+      this.data = this.data.filter(item => {
+        return !Object.entries(filter).every(([key, value]) => {
+          return item[key] === value;
+        });
+      });
+    }
+
+    return {
+      deletedCount: initialLength - this.data.length
+    };
+  }
+}
+
+/**
+ * Mock database class that mimics MongoDB Db API
+ */
+class MockDatabase {
+  constructor() {
+    this.collections = {};
+    
+    // Initialize collections with mock data
+    for (const [name, data] of Object.entries(mockData)) {
+      this.collections[name] = new MockCollection(name, data);
+    }
+  }
+
+  collection(name) {
+    // Create collection if it doesn't exist
+    if (!this.collections[name]) {
+      this.collections[name] = new MockCollection(name, []);
+    }
+    return this.collections[name];
+  }
+
+  async listCollections() {
+    return {
+      toArray: async () => Object.keys(this.collections).map(name => ({ name }))
+    };
+  }
+
+  async createCollection(name) {
+    if (!this.collections[name]) {
+      this.collections[name] = new MockCollection(name, []);
+    }
+    return this.collections[name];
+  }
+}
+
+/**
+ * Connect to MongoDB and return database instance
+ * Falls back to mock data if connection fails
+ * @returns {Promise<Object>} MongoDB database instance or mock database
+ */
+const connectToDatabase = async () => {
+  // Return existing connection if we have one
+  if (dbInstance) {
+    return dbInstance;
+  }
+
+  try {
+    client = new MongoClient(MONGODB_URI);
+    await client.connect();
+    console.log('Connected to MongoDB successfully');
+    
+    dbInstance = client.db(DB_NAME);
+    
+    // Create collections if they don't exist
+    for (const collection of Object.values(COLLECTIONS)) {
+      const collections = await dbInstance.listCollections({ name: collection }).toArray();
+      if (collections.length === 0) {
+        await dbInstance.createCollection(collection);
+        console.log(`Created collection: ${collection}`);
+      }
+    }
+    
+    useMockData = false;
+    return dbInstance;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    console.log('Using mock data instead of MongoDB');
+    
+    // Fall back to mock data
+    dbInstance = new MockDatabase();
+    useMockData = true;
+    return dbInstance;
+  }
+};
+
+/**
+ * Get the database instance, connect if not already connected
+ * @returns {Promise<Object>} MongoDB database instance or mock database
+ */
+const getDb = async () => {
+  if (!dbInstance) {
+    return await connectToDatabase();
+  }
+  return dbInstance;
+};
+
+/**
+ * Get a specific collection
+ * @param {string} collectionName - Name of the collection
+ * @returns {Promise<Collection>} MongoDB collection or mock collection
+ */
+const getCollection = async (collectionName) => {
+  const db = await getDb();
+  return db.collection(collectionName);
+};
+
+/**
+ * Check if we're using mock data
+ * @returns {boolean} True if using mock data
+ */
+const isUsingMockData = () => {
+  return useMockData;
+};
+
+/**
+ * Close the database connection
+ */
+const closeConnection = async () => {
+  if (client && !useMockData) {
+    await client.close();
+    console.log('MongoDB connection closed');
+  }
+  dbInstance = null;
+  client = null;
+};
+
+module.exports = {
+  connectToDatabase,
+  getDb,
+  getCollection,
+  closeConnection,
+  isUsingMockData,
+  COLLECTIONS
+}; 
