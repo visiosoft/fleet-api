@@ -8,6 +8,7 @@ const db = require('./config/db');
 
 // Import routes
 const driverRoutes = require('./routes/driverRoutes');
+const expenseRoutes = require('./routes/expenseRoutes');
 
 // Initialize Express app
 const app = express();
@@ -29,12 +30,14 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Use dedicated driver routes
+// Use dedicated routes
 app.use('/api/drivers', driverRoutes);
+app.use('/api/expenses', expenseRoutes);
 
 // Generic API routes for other collections
 const COLLECTIONS = db.COLLECTIONS;
 delete COLLECTIONS.drivers; // We have a dedicated route for drivers
+delete COLLECTIONS.expenses; // We have a dedicated route for expenses
 
 Object.entries(COLLECTIONS).forEach(([key, collectionName]) => {
   // Get all documents

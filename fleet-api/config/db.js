@@ -19,6 +19,7 @@ const COLLECTIONS = {
   maintenance: 'maintenance',
   fuel: 'fuel',
   contracts: 'contracts',
+  expenses: 'expenses',
 };
 
 // DB connection instance
