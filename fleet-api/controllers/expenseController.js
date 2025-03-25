@@ -277,13 +277,6 @@ const ExpenseController = {
         });
       }
       
-      // Only allow deletion if status is pending
-      if (expense.paymentStatus !== 'pending') {
-        return res.status(400).json({ 
-          status: 'error', 
-          message: 'Cannot delete expense that is not in pending status' 
-        });
-      }
       
       const result = await collection.deleteOne({ _id: new ObjectId(id) });
       
@@ -413,6 +406,303 @@ const ExpenseController = {
       res.status(500).json({ 
         status: 'error', 
         message: 'Failed to retrieve expense summary', 
+        error: error.message 
+      });
+    }
+  },
+
+  /**
+   * Get monthly expense totals
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  async getMonthlyExpenses(req, res) {
+    try {
+      const { year } = req.query;
+      const collection = await ExpenseModel.getCollection();
+      
+      const pipeline = [
+        {
+          $match: {
+            date: {
+              $gte: new Date(year || new Date().getFullYear(), 0, 1),
+              $lt: new Date((year || new Date().getFullYear()) + 1, 0, 1)
+            }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              month: { $month: '$date' },
+              year: { $year: '$date' }
+            },
+            totalAmount: { $sum: '$amount' },
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            month: '$_id.month',
+            year: '$_id.year',
+            totalAmount: 1,
+            count: 1
+          }
+        },
+        { $sort: { month: 1 } }
+      ];
+
+      const monthlyExpenses = await collection.aggregate(pipeline).toArray();
+      
+      // Calculate yearly total
+      const yearlyTotal = monthlyExpenses.reduce((total, month) => total + month.totalAmount, 0);
+      
+      res.status(200).json({
+        status: 'success',
+        data: {
+          monthlyExpenses,
+          yearlyTotal
+        }
+      });
+    } catch (error) {
+      console.error('Error getting monthly expenses:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Failed to retrieve monthly expenses', 
+        error: error.message 
+      });
+    }
+  },
+
+  /**
+   * Get yearly expense totals
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  async getYearlyExpenses(req, res) {
+    try {
+      const collection = await ExpenseModel.getCollection();
+      
+      const pipeline = [
+        {
+          $group: {
+            _id: { $year: '$date' },
+            totalAmount: { $sum: '$amount' },
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            year: '$_id',
+            totalAmount: 1,
+            count: 1
+          }
+        },
+        { $sort: { year: -1 } }
+      ];
+
+      const yearlyExpenses = await collection.aggregate(pipeline).toArray();
+      
+      // Calculate grand total
+      const grandTotal = yearlyExpenses.reduce((total, year) => total + year.totalAmount, 0);
+      
+      res.status(200).json({
+        status: 'success',
+        data: {
+          yearlyExpenses,
+          grandTotal
+        }
+      });
+    } catch (error) {
+      console.error('Error getting yearly expenses:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Failed to retrieve yearly expenses', 
+        error: error.message 
+      });
+    }
+  },
+
+  /**
+   * Get expense breakdown by category (for pie chart)
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  async getExpenseByCategory(req, res) {
+    try {
+      const { year } = req.query;
+      const collection = await ExpenseModel.getCollection();
+      
+      const pipeline = [
+        {
+          $match: year ? {
+            date: {
+              $gte: new Date(year, 0, 1),
+              $lt: new Date(parseInt(year) + 1, 0, 1)
+            }
+          } : {}
+        },
+        {
+          $group: {
+            _id: '$expenseType',
+            totalAmount: { $sum: '$amount' },
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            category: '$_id',
+            totalAmount: 1,
+            count: 1,
+            percentage: {
+              $multiply: [
+                { $divide: ['$totalAmount', { $sum: '$totalAmount' }] },
+                100
+              ]
+            }
+          }
+        },
+        { $sort: { totalAmount: -1 } }
+      ];
+
+      const categoryExpenses = await collection.aggregate(pipeline).toArray();
+      
+      // Calculate total
+      const total = categoryExpenses.reduce((sum, category) => sum + category.totalAmount, 0);
+      
+      res.status(200).json({
+        status: 'success',
+        data: {
+          categories: categoryExpenses,
+          total
+        }
+      });
+    } catch (error) {
+      console.error('Error getting expenses by category:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Failed to retrieve expenses by category', 
+        error: error.message 
+      });
+    }
+  },
+
+  /**
+   * Get monthly fuel expenses
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  async getMonthlyFuelExpenses(req, res) {
+    try {
+      const { year } = req.query;
+      const collection = await ExpenseModel.getCollection();
+      
+      const pipeline = [
+        {
+          $match: {
+            expenseType: 'fuel',
+            date: {
+              $gte: new Date(year || new Date().getFullYear(), 0, 1),
+              $lt: new Date((year || new Date().getFullYear()) + 1, 0, 1)
+            }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              month: { $month: '$date' },
+              year: { $year: '$date' }
+            },
+            totalAmount: { $sum: '$amount' },
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            month: '$_id.month',
+            year: '$_id.year',
+            totalAmount: 1,
+            count: 1
+          }
+        },
+        { $sort: { month: 1 } }
+      ];
+
+      const monthlyFuelExpenses = await collection.aggregate(pipeline).toArray();
+      
+      // Calculate yearly fuel total
+      const yearlyFuelTotal = monthlyFuelExpenses.reduce((total, month) => total + month.totalAmount, 0);
+      
+      res.status(200).json({
+        status: 'success',
+        data: {
+          monthlyFuelExpenses,
+          yearlyFuelTotal
+        }
+      });
+    } catch (error) {
+      console.error('Error getting monthly fuel expenses:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Failed to retrieve monthly fuel expenses', 
+        error: error.message 
+      });
+    }
+  },
+
+  /**
+   * Get yearly fuel expenses
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  async getYearlyFuelExpenses(req, res) {
+    try {
+      const collection = await ExpenseModel.getCollection();
+      
+      const pipeline = [
+        {
+          $match: {
+            expenseType: 'fuel'
+          }
+        },
+        {
+          $group: {
+            _id: { $year: '$date' },
+            totalAmount: { $sum: '$amount' },
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            year: '$_id',
+            totalAmount: 1,
+            count: 1
+          }
+        },
+        { $sort: { year: -1 } }
+      ];
+
+      const yearlyFuelExpenses = await collection.aggregate(pipeline).toArray();
+      
+      // Calculate grand total for fuel
+      const grandFuelTotal = yearlyFuelExpenses.reduce((total, year) => total + year.totalAmount, 0);
+      
+      res.status(200).json({
+        status: 'success',
+        data: {
+          yearlyFuelExpenses,
+          grandFuelTotal
+        }
+      });
+    } catch (error) {
+      console.error('Error getting yearly fuel expenses:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Failed to retrieve yearly fuel expenses', 
         error: error.message 
       });
     }

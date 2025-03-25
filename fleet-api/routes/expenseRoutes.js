@@ -8,6 +8,21 @@ router.get('/', ExpenseController.getAllExpenses);
 // Get expense summary
 router.get('/summary', ExpenseController.getExpenseSummary);
 
+// Get monthly expenses with totals
+router.get('/monthly', ExpenseController.getMonthlyExpenses);
+
+// Get yearly expenses with totals
+router.get('/yearly', ExpenseController.getYearlyExpenses);
+
+// Get fuel expenses - monthly
+router.get('/fuel/monthly', ExpenseController.getMonthlyFuelExpenses);
+
+// Get fuel expenses - yearly
+router.get('/fuel/yearly', ExpenseController.getYearlyFuelExpenses);
+
+// Get expenses by category (for pie chart)
+router.get('/by-category', ExpenseController.getExpenseByCategory);
+
 // Get expenses by vehicle
 router.get('/vehicle/:vehicleId', ExpenseController.getExpensesByVehicle);
 

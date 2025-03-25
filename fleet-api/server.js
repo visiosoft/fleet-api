@@ -9,6 +9,7 @@ const db = require('./config/db');
 // Import routes
 const driverRoutes = require('./routes/driverRoutes');
 const expenseRoutes = require('./routes/expenseRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 // Initialize Express app
 const app = express();
@@ -30,9 +31,10 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Use dedicated routes
-app.use('/api/drivers', driverRoutes);
+// Use routes
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/drivers', driverRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Generic API routes for other collections
 const COLLECTIONS = db.COLLECTIONS;
