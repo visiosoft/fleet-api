@@ -32,7 +32,8 @@ const COLLECTIONS = {
     contracts: 'contracts',
     expenses: 'expenses',
     companies: 'companies',
-    users: 'users'
+    users: 'users',
+    payrollentries: 'payrollentries'
 };
 
 // DB connection instance

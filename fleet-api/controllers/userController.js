@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Company = require('../models/Company');
+const bcrypt = require('bcryptjs');
 
 const userController = {
     /**
@@ -8,10 +9,19 @@ const userController = {
     async getCompanyUsers(req, res) {
         try {
             const users = await User.find({ company: req.company._id })
-                .select('-password -resetPasswordToken -resetPasswordExpires');
-            res.json(users);
+                .select('-password')
+                .sort({ createdAt: -1 });
+
+            res.json({
+                status: 'success',
+                data: users
+            });
         } catch (error) {
-            res.status(500).json({ message: error.message });
+            res.status(500).json({
+                status: 'error',
+                message: 'Failed to fetch users',
+                error: error.message
+            });
         }
     },
 
@@ -20,28 +30,41 @@ const userController = {
      */
     async createUser(req, res) {
         try {
-            const { firstName, lastName, email, password, role } = req.body;
-
             // Check if email already exists
-            const existingUser = await User.findOne({ email });
+            const existingUser = await User.findOne({ email: req.body.email });
             if (existingUser) {
-                return res.status(400).json({ message: 'Email already exists' });
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Email already exists'
+                });
             }
 
-            // Create new user
+            // Hash password
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(req.body.password, salt);
+
             const user = new User({
-                firstName,
-                lastName,
-                email,
-                password,
-                role: role || 'user',
+                ...req.body,
+                password: hashedPassword,
                 company: req.company._id
             });
 
             await user.save();
-            res.status(201).json(user.getPublicProfile());
+
+            // Remove password from response
+            const userResponse = user.toObject();
+            delete userResponse.password;
+
+            res.status(201).json({
+                status: 'success',
+                data: userResponse
+            });
         } catch (error) {
-            res.status(400).json({ message: error.message });
+            res.status(500).json({
+                status: 'error',
+                message: 'Failed to create user',
+                error: error.message
+            });
         }
     },
 
@@ -49,14 +72,6 @@ const userController = {
      * Update a user
      */
     async updateUser(req, res) {
-        const updates = Object.keys(req.body);
-        const allowedUpdates = ['firstName', 'lastName', 'email', 'role', 'status'];
-        const isValidOperation = updates.every(update => allowedUpdates.includes(update));
-
-        if (!isValidOperation) {
-            return res.status(400).json({ message: 'Invalid updates' });
-        }
-
         try {
             const user = await User.findOne({
                 _id: req.params.id,
@@ -64,14 +79,41 @@ const userController = {
             });
 
             if (!user) {
-                return res.status(404).json({ message: 'User not found' });
+                return res.status(404).json({
+                    status: 'error',
+                    message: 'User not found'
+                });
             }
 
-            updates.forEach(update => user[update] = req.body[update]);
+            // If password is being updated, hash it
+            if (req.body.password) {
+                const salt = await bcrypt.genSalt(10);
+                req.body.password = await bcrypt.hash(req.body.password, salt);
+            }
+
+            // Update fields
+            Object.keys(req.body).forEach(key => {
+                if (key !== 'company') {
+                    user[key] = req.body[key];
+                }
+            });
+
             await user.save();
-            res.json(user.getPublicProfile());
+
+            // Remove password from response
+            const userResponse = user.toObject();
+            delete userResponse.password;
+
+            res.json({
+                status: 'success',
+                data: userResponse
+            });
         } catch (error) {
-            res.status(400).json({ message: error.message });
+            res.status(500).json({
+                status: 'error',
+                message: 'Failed to update user',
+                error: error.message
+            });
         }
     },
 
@@ -80,18 +122,30 @@ const userController = {
      */
     async deleteUser(req, res) {
         try {
-            const user = await User.findOneAndDelete({
+            const user = await User.findOne({
                 _id: req.params.id,
                 company: req.company._id
             });
 
             if (!user) {
-                return res.status(404).json({ message: 'User not found' });
+                return res.status(404).json({
+                    status: 'error',
+                    message: 'User not found'
+                });
             }
 
-            res.json({ message: 'User deleted successfully' });
+            await user.remove();
+
+            res.json({
+                status: 'success',
+                message: 'User deleted successfully'
+            });
         } catch (error) {
-            res.status(500).json({ message: error.message });
+            res.status(500).json({
+                status: 'error',
+                message: 'Failed to delete user',
+                error: error.message
+            });
         }
     },
 
@@ -103,15 +157,25 @@ const userController = {
             const user = await User.findOne({
                 _id: req.params.id,
                 company: req.company._id
-            }).select('-password -resetPasswordToken -resetPasswordExpires');
+            }).select('-password');
 
             if (!user) {
-                return res.status(404).json({ message: 'User not found' });
+                return res.status(404).json({
+                    status: 'error',
+                    message: 'User not found'
+                });
             }
 
-            res.json(user);
+            res.json({
+                status: 'success',
+                data: user
+            });
         } catch (error) {
-            res.status(500).json({ message: error.message });
+            res.status(500).json({
+                status: 'error',
+                message: 'Failed to fetch user',
+                error: error.message
+            });
         }
     }
 };

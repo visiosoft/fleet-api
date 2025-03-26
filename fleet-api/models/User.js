@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['active', 'inactive', 'suspended'],
+        enum: ['active', 'inactive'],
         default: 'active'
     },
     lastLogin: {
@@ -53,7 +53,13 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     }
+}, {
+    timestamps: true
 });
+
+// Indexes for efficient queries
+userSchema.index({ company: 1, status: 1 });
+userSchema.index({ email: 1 }, { unique: true });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

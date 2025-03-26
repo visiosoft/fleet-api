@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const { auth, checkRole, checkCompanyAccess } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
-// Apply authentication and company access middleware to all routes
-router.use(auth);
-router.use(checkCompanyAccess);
+// Apply authentication middleware to all routes
+router.use(authenticate);
 
 /**
  * @swagger
@@ -27,7 +26,7 @@ router.use(checkCompanyAccess);
  *       500:
  *         description: Server error
  */
-router.get('/', checkRole('admin', 'manager'), userController.getCompanyUsers);
+router.get('/', authorize(['admin', 'manager']), userController.getCompanyUsers);
 
 /**
  * @swagger
@@ -68,7 +67,7 @@ router.get('/', checkRole('admin', 'manager'), userController.getCompanyUsers);
  *       500:
  *         description: Server error
  */
-router.post('/', checkRole('admin'), userController.createUser);
+router.post('/', authorize(['admin']), userController.createUser);
 
 /**
  * @swagger
@@ -92,7 +91,7 @@ router.post('/', checkRole('admin'), userController.createUser);
  *       500:
  *         description: Server error
  */
-router.get('/:id', checkRole('admin', 'manager'), userController.getUserById);
+router.get('/:id', authorize(['admin', 'manager']), userController.getUserById);
 
 /**
  * @swagger
@@ -135,7 +134,7 @@ router.get('/:id', checkRole('admin', 'manager'), userController.getUserById);
  *       500:
  *         description: Server error
  */
-router.put('/:id', checkRole('admin'), userController.updateUser);
+router.put('/:id', authorize(['admin']), userController.updateUser);
 
 /**
  * @swagger
@@ -159,6 +158,6 @@ router.put('/:id', checkRole('admin'), userController.updateUser);
  *       500:
  *         description: Server error
  */
-router.delete('/:id', checkRole('admin'), userController.deleteUser);
+router.delete('/:id', authorize(['admin']), userController.deleteUser);
 
 module.exports = router; 

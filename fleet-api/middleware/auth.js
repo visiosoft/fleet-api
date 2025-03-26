@@ -2,45 +2,38 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Company = require('../models/Company');
 
-const auth = async (req, res, next) => {
+// Authentication middleware
+const authenticate = async (req, res, next) => {
     try {
         const token = req.header('Authorization')?.replace('Bearer ', '');
         
         if (!token) {
-            throw new Error();
+            return res.status(401).json({
+                status: 'error',
+                message: 'Authentication required'
+            });
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findOne({ _id: decoded.userId, status: 'active' });
-
-        if (!user) {
-            throw new Error();
-        }
-
-        // Check if user's company is active
-        const company = await Company.findOne({ _id: user.company, status: 'active' });
-        if (!company) {
-            throw new Error('Company is inactive or suspended');
-        }
-
-        // Check subscription status
-        if (company.subscription.status !== 'active') {
-            throw new Error('Company subscription is not active');
-        }
-
-        req.token = token;
-        req.user = user;
-        req.company = company;
+        req.user = decoded;
+        req.company = { _id: decoded.companyId };
         next();
     } catch (error) {
-        res.status(401).json({ message: 'Please authenticate' });
+        res.status(401).json({
+            status: 'error',
+            message: 'Invalid or expired token'
+        });
     }
 };
 
-const checkRole = (...roles) => {
+// Authorization middleware
+const authorize = (roles) => {
     return (req, res, next) => {
         if (!roles.includes(req.user.role)) {
-            return res.status(403).json({ message: 'Access denied' });
+            return res.status(403).json({
+                status: 'error',
+                message: 'Access denied'
+            });
         }
         next();
     };
@@ -62,7 +55,7 @@ const checkCompanyAccess = async (req, res, next) => {
 };
 
 module.exports = {
-    auth,
-    checkRole,
+    authenticate,
+    authorize,
     checkCompanyAccess
 }; 
