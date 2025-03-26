@@ -16,13 +16,11 @@ const DB_NAME = process.env.DB_NAME || 'fleet-management';
 const options = {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 30000, // Increase timeout to 30 seconds
-    socketTimeoutMS: 45000,
-    connectTimeoutMS: 30000,
+    serverSelectionTimeoutMS: 15000, // Timeout after 15 seconds
+    socketTimeoutMS: 45000, // Socket timeout after 45 seconds
+    connectTimeoutMS: 15000, // Connection timeout after 15 seconds
     maxPoolSize: 10,
-    minPoolSize: 5,
-    retryWrites: true,
-    w: 'majority'
+    minPoolSize: 5
 };
 
 // Collections

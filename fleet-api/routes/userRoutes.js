@@ -1,13 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
+const { auth, checkRole, checkCompanyAccess } = require('../middleware/auth');
+
+// Apply authentication and company access middleware to all routes
+router.use(auth);
+router.use(checkCompanyAccess);
 
 /**
  * @swagger
  * /api/users:
  *   get:
- *     summary: Get all users
+ *     summary: Get all users for the company
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of all users
@@ -20,14 +27,16 @@ const userController = require('../controllers/userController');
  *       500:
  *         description: Server error
  */
-router.get('/', userController.getCompanyUsers);
+router.get('/', checkRole('admin', 'manager'), userController.getCompanyUsers);
 
 /**
  * @swagger
  * /api/users:
  *   post:
- *     summary: Create a new user
+ *     summary: Create a new user for the company
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -59,7 +68,7 @@ router.get('/', userController.getCompanyUsers);
  *       500:
  *         description: Server error
  */
-router.post('/', userController.createUser);
+router.post('/', checkRole('admin'), userController.createUser);
 
 /**
  * @swagger
@@ -67,6 +76,8 @@ router.post('/', userController.createUser);
  *   get:
  *     summary: Get a user by ID
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -81,7 +92,7 @@ router.post('/', userController.createUser);
  *       500:
  *         description: Server error
  */
-router.get('/:id', userController.getUserById);
+router.get('/:id', checkRole('admin', 'manager'), userController.getUserById);
 
 /**
  * @swagger
@@ -89,6 +100,8 @@ router.get('/:id', userController.getUserById);
  *   put:
  *     summary: Update a user
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -122,7 +135,7 @@ router.get('/:id', userController.getUserById);
  *       500:
  *         description: Server error
  */
-router.put('/:id', userController.updateUser);
+router.put('/:id', checkRole('admin'), userController.updateUser);
 
 /**
  * @swagger
@@ -130,6 +143,8 @@ router.put('/:id', userController.updateUser);
  *   delete:
  *     summary: Delete a user
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -144,6 +159,6 @@ router.put('/:id', userController.updateUser);
  *       500:
  *         description: Server error
  */
-router.delete('/:id', userController.deleteUser);
+router.delete('/:id', checkRole('admin'), userController.deleteUser);
 
 module.exports = router; 

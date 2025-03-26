@@ -12,6 +12,7 @@ const expenseRoutes = require('./routes/expenseRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const costRoutes = require('./routes/costRoutes');
 
 // Initialize Express app
 const app = express();
@@ -39,6 +40,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/drivers', driverRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/costs', costRoutes);
 
 // Generic API routes for other collections
 const COLLECTIONS = db.COLLECTIONS;
@@ -189,33 +191,11 @@ Object.entries(COLLECTIONS).forEach(([key, collectionName]) => {
   });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ 
-    status: 'error', 
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
-
 // Start the server
-const startServer = async () => {
-  try {
-    // Connect to MongoDB first
-    await db.connectToDatabase();
-    
-    // Then start the server
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
-};
-
-startServer();
+app.listen(PORT, async () => {
+  console.log(`Server is running on port ${PORT}`);
+  await db.connectToDatabase();
+});
 
 // Handle server shutdown
 process.on('SIGINT', async () => {
