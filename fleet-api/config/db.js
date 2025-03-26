@@ -12,14 +12,29 @@ const mockData = require('./mock-data');
 const MONGODB_URI = process.env.MONGODB_URI;
 const DB_NAME = process.env.DB_NAME || 'fleet-management';
 
+// MongoDB connection options
+const options = {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 30000, // Increase timeout to 30 seconds
+    socketTimeoutMS: 45000,
+    connectTimeoutMS: 30000,
+    maxPoolSize: 10,
+    minPoolSize: 5,
+    retryWrites: true,
+    w: 'majority'
+};
+
 // Collections
 const COLLECTIONS = {
-  drivers: 'drivers',
-  vehicles: 'vehicles',
-  maintenance: 'maintenance',
-  fuel: 'fuel',
-  contracts: 'contracts',
-  expenses: 'expenses',
+    drivers: 'drivers',
+    vehicles: 'vehicles',
+    maintenance: 'maintenance',
+    fuel: 'fuel',
+    contracts: 'contracts',
+    expenses: 'expenses',
+    companies: 'companies',
+    users: 'users'
 };
 
 // DB connection instance
@@ -168,38 +183,24 @@ class MockDatabase {
  * @returns {Promise<Object>} MongoDB database instance or mock database
  */
 const connectToDatabase = async () => {
-  // Return existing connection if we have one
-  if (dbInstance) {
-    return dbInstance;
-  }
+    try {
+        if (dbInstance) {
+            return dbInstance;
+        }
 
-  try {
-    client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    console.log('Connected to MongoDB successfully');
-    
-    dbInstance = client.db(DB_NAME);
-    
-    // Create collections if they don't exist
-    for (const collection of Object.values(COLLECTIONS)) {
-      const collections = await dbInstance.listCollections({ name: collection }).toArray();
-      if (collections.length === 0) {
-        await dbInstance.createCollection(collection);
-        console.log(`Created collection: ${collection}`);
-      }
+        console.log('Connecting to MongoDB...');
+        client = await MongoClient.connect(MONGODB_URI, options);
+        dbInstance = client.db(DB_NAME);
+        
+        // Test the connection
+        await dbInstance.command({ ping: 1 });
+        console.log('Connected to MongoDB successfully');
+        
+        return dbInstance;
+    } catch (error) {
+        console.error('MongoDB connection error:', error);
+        throw error;
     }
-    
-    useMockData = false;
-    return dbInstance;
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    console.log('Using mock data instead of MongoDB');
-    
-    // Fall back to mock data
-    dbInstance = new MockDatabase();
-    useMockData = true;
-    return dbInstance;
-  }
 };
 
 /**
@@ -207,10 +208,10 @@ const connectToDatabase = async () => {
  * @returns {Promise<Object>} MongoDB database instance or mock database
  */
 const getDb = async () => {
-  if (!dbInstance) {
-    return await connectToDatabase();
-  }
-  return dbInstance;
+    if (!dbInstance) {
+        await connectToDatabase();
+    }
+    return dbInstance;
 };
 
 /**
@@ -219,8 +220,8 @@ const getDb = async () => {
  * @returns {Promise<Collection>} MongoDB collection or mock collection
  */
 const getCollection = async (collectionName) => {
-  const db = await getDb();
-  return db.collection(collectionName);
+    const db = await getDb();
+    return db.collection(collectionName);
 };
 
 /**
@@ -235,19 +236,18 @@ const isUsingMockData = () => {
  * Close the database connection
  */
 const closeConnection = async () => {
-  if (client && !useMockData) {
-    await client.close();
-    console.log('MongoDB connection closed');
-  }
-  dbInstance = null;
-  client = null;
+    if (client) {
+        await client.close();
+        client = null;
+        dbInstance = null;
+    }
 };
 
 module.exports = {
-  connectToDatabase,
-  getDb,
-  getCollection,
-  closeConnection,
-  isUsingMockData,
-  COLLECTIONS
+    connectToDatabase,
+    getDb,
+    getCollection,
+    closeConnection,
+    isUsingMockData,
+    COLLECTIONS
 }; 

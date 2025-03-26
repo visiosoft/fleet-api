@@ -23,4 +23,7 @@ router.get('/maintenance/current-month', DashboardController.getCurrentMonthMain
 // Get current month's maintenance cost by vehicle
 router.get('/maintenance/current-month/by-vehicle', DashboardController.getCurrentMonthMaintenanceByVehicle);
 
+// Get contract statistics
+router.get('/contracts/stats', DashboardController.getContractStats);
+
 module.exports = router; 

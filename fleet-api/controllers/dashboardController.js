@@ -400,6 +400,181 @@ const DashboardController = {
         error: error.message 
       });
     }
+  },
+
+  /**
+   * Get contract statistics including total, active, expiring soon, and total value
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  async getContractStats(req, res) {
+    try {
+      const collection = await db.getCollection('contracts');
+      const now = new Date();
+      
+      // Define expiring soon threshold (7 days from now)
+      const expiringSoonDate = new Date();
+      expiringSoonDate.setDate(expiringSoonDate.getDate() + 7);
+
+      // First, let's get all contracts to debug
+      const allContracts = await collection.find({}).toArray();
+      console.log('Total contracts found:', allContracts.length);
+      console.log('Current date:', now);
+
+      // Validate and convert contract dates
+      const validContracts = allContracts.map(contract => {
+        const endDate = new Date(contract.endDate);
+        const startDate = new Date(contract.startDate);
+        return {
+          ...contract,
+          endDate,
+          startDate,
+          isActive: endDate > now && (!contract.status || contract.status !== 'terminated'),
+          isExpiringSoon: endDate > now && endDate <= expiringSoonDate && (!contract.status || contract.status !== 'terminated')
+        };
+      });
+
+      const pipeline = [
+        {
+          $addFields: {
+            // Convert string dates to Date objects if they aren't already
+            endDate: { $toDate: '$endDate' },
+            startDate: { $toDate: '$startDate' }
+          }
+        },
+        {
+          $facet: {
+            // Total contracts count
+            totalContracts: [
+              { $count: 'count' }
+            ],
+            // Active contracts (end date > current date)
+            activeContracts: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $gt: ['$endDate', now] },
+                      { $or: [
+                        { $eq: ['$status', null] },
+                        { $ne: ['$status', 'terminated'] }
+                      ]}
+                    ]
+                  }
+                }
+              },
+              { $count: 'count' }
+            ],
+            // Contracts expiring in next 7 days
+            expiringSoon: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $gt: ['$endDate', now] },
+                      { $lte: ['$endDate', expiringSoonDate] },
+                      { $or: [
+                        { $eq: ['$status', null] },
+                        { $ne: ['$status', 'terminated'] }
+                      ]}
+                    ]
+                  }
+                }
+              },
+              { $count: 'count' }
+            ],
+            // Total contract value (sum of all contract values)
+            totalValue: [
+              {
+                $group: {
+                  _id: null,
+                  value: { $sum: '$value' }
+                }
+              }
+            ],
+            // Recent contracts for reference
+            recentContracts: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $gt: ['$endDate', now] },
+                      { $or: [
+                        { $eq: ['$status', null] },
+                        { $ne: ['$status', 'terminated'] }
+                      ]}
+                    ]
+                  }
+                }
+              },
+              {
+                $sort: { startDate: -1 }
+              },
+              {
+                $limit: 5
+              },
+              {
+                $project: {
+                  contractNumber: 1,
+                  value: 1,
+                  startDate: 1,
+                  endDate: 1,
+                  status: 1,
+                  clientName: 1
+                }
+              }
+            ]
+          }
+        }
+      ];
+
+      const result = await collection.aggregate(pipeline).toArray();
+      const stats = result[0];
+
+      // Manual count for verification
+      const manualCounts = {
+        active: validContracts.filter(c => c.isActive).length,
+        expiringSoon: validContracts.filter(c => c.isExpiringSoon).length,
+        totalValue: validContracts.reduce((sum, c) => sum + (Number(c.value) || 0), 0)
+      };
+
+      // Debug contract values
+      console.log('Contract values:', validContracts.map(c => ({
+        id: c._id,
+        value: c.value,
+        parsed: Number(c.value)
+      })));
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          totalContracts: stats.totalContracts[0]?.count || 0,
+          activeContracts: manualCounts.active,
+          expiringSoon: manualCounts.expiringSoon,
+          totalValue: manualCounts.totalValue, // Using manual calculation for more reliable results
+          recentContracts: stats.recentContracts || [],
+          lastUpdated: now,
+          debug: {
+            totalFound: allContracts.length,
+            contractsWithFutureEndDate: validContracts.filter(c => c.endDate > now).length,
+            currentDate: now,
+            manualCounts,
+            aggregateCounts: {
+              active: stats.activeContracts[0]?.count || 0,
+              expiringSoon: stats.expiringSoon[0]?.count || 0,
+              totalValue: stats.totalValue[0]?.value || 0
+            }
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error getting contract statistics:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Failed to retrieve contract statistics', 
+        error: error.message 
+      });
+    }
   }
 };
 
