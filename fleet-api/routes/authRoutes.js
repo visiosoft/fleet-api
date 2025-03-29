@@ -9,7 +9,7 @@ const users = [
   {
     _id: '1',
     email: 'admin@example.com',
-    password: '$2a$10$XOPbrlUPQdwdJUpSrIF6X.LbE14qsMmKGhM1A8W9E/vPt0E4Qr2.6', // password: admin123
+    password: 'admin123', // Plain text password
     role: 'admin',
     companyId: '1'
   }
@@ -20,17 +20,22 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log('Login attempt:', { email }); // Add logging
+
     // Find user
     const user = users.find(u => u.email === email);
     if (!user) {
+      console.log('User not found'); // Add logging
       return res.status(401).json({
         status: 'error',
         message: 'Invalid credentials'
       });
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
+    // Direct password comparison
+    const isMatch = password === user.password;
+    console.log('Password match:', isMatch); // Add logging
+
     if (!isMatch) {
       return res.status(401).json({
         status: 'error',
@@ -45,7 +50,7 @@ router.post('/login', async (req, res) => {
         role: user.role,
         companyId: user.companyId
       },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
     );
 
@@ -61,6 +66,7 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Login error:', error); // Add error logging
     res.status(500).json({
       status: 'error',
       message: 'Login failed',

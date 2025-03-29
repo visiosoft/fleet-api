@@ -1,183 +1,311 @@
-const User = require('../models/User');
-const Company = require('../models/Company');
-const bcrypt = require('bcryptjs');
+const { ObjectId } = require('mongodb');
+const UserModel = require('../models/UserModel');
 
-const userController = {
-    /**
-     * Get all users for the company
-     */
-    async getCompanyUsers(req, res) {
-        try {
-            const users = await User.find({ company: req.company._id })
-                .select('-password')
-                .sort({ createdAt: -1 });
+// Get all users with pagination
+const getUsers = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const companyId = req.user.companyId;
 
-            res.json({
-                status: 'success',
-                data: users
-            });
-        } catch (error) {
-            res.status(500).json({
-                status: 'error',
-                message: 'Failed to fetch users',
-                error: error.message
-            });
-        }
-    },
+        const users = await UserModel.find({ companyId: new ObjectId(companyId) }, {
+            projection: {
+                firstName: 1,
+                lastName: 1,
+                email: 1,
+                phone: 1,
+                role: 1,
+                status: 1,
+                companyId: 1,
+                createdAt: 1,
+                updatedAt: 1
+            },
+            sort: { createdAt: -1 },
+            skip: skip,
+            limit: limit
+        });
 
-    /**
-     * Create a new user for the company
-     */
-    async createUser(req, res) {
-        try {
-            // Check if email already exists
-            const existingUser = await User.findOne({ email: req.body.email });
-            if (existingUser) {
-                return res.status(400).json({
-                    status: 'error',
-                    message: 'Email already exists'
-                });
+        const total = await UserModel.countDocuments({ companyId: new ObjectId(companyId) });
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                users,
+                total,
+                page,
+                limit
             }
-
-            // Hash password
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash(req.body.password, salt);
-
-            const user = new User({
-                ...req.body,
-                password: hashedPassword,
-                company: req.company._id
-            });
-
-            await user.save();
-
-            // Remove password from response
-            const userResponse = user.toObject();
-            delete userResponse.password;
-
-            res.status(201).json({
-                status: 'success',
-                data: userResponse
-            });
-        } catch (error) {
-            res.status(500).json({
-                status: 'error',
-                message: 'Failed to create user',
-                error: error.message
-            });
-        }
-    },
-
-    /**
-     * Update a user
-     */
-    async updateUser(req, res) {
-        try {
-            const user = await User.findOne({
-                _id: req.params.id,
-                company: req.company._id
-            });
-
-            if (!user) {
-                return res.status(404).json({
-                    status: 'error',
-                    message: 'User not found'
-                });
-            }
-
-            // If password is being updated, hash it
-            if (req.body.password) {
-                const salt = await bcrypt.genSalt(10);
-                req.body.password = await bcrypt.hash(req.body.password, salt);
-            }
-
-            // Update fields
-            Object.keys(req.body).forEach(key => {
-                if (key !== 'company') {
-                    user[key] = req.body[key];
-                }
-            });
-
-            await user.save();
-
-            // Remove password from response
-            const userResponse = user.toObject();
-            delete userResponse.password;
-
-            res.json({
-                status: 'success',
-                data: userResponse
-            });
-        } catch (error) {
-            res.status(500).json({
-                status: 'error',
-                message: 'Failed to update user',
-                error: error.message
-            });
-        }
-    },
-
-    /**
-     * Delete a user
-     */
-    async deleteUser(req, res) {
-        try {
-            const user = await User.findOne({
-                _id: req.params.id,
-                company: req.company._id
-            });
-
-            if (!user) {
-                return res.status(404).json({
-                    status: 'error',
-                    message: 'User not found'
-                });
-            }
-
-            await user.remove();
-
-            res.json({
-                status: 'success',
-                message: 'User deleted successfully'
-            });
-        } catch (error) {
-            res.status(500).json({
-                status: 'error',
-                message: 'Failed to delete user',
-                error: error.message
-            });
-        }
-    },
-
-    /**
-     * Get user by ID
-     */
-    async getUserById(req, res) {
-        try {
-            const user = await User.findOne({
-                _id: req.params.id,
-                company: req.company._id
-            }).select('-password');
-
-            if (!user) {
-                return res.status(404).json({
-                    status: 'error',
-                    message: 'User not found'
-                });
-            }
-
-            res.json({
-                status: 'success',
-                data: user
-            });
-        } catch (error) {
-            res.status(500).json({
-                status: 'error',
-                message: 'Failed to fetch user',
-                error: error.message
-            });
-        }
+        });
+    } catch (error) {
+        console.error('Error getting users:', error);
+        res.status(500).json({
+            status: 'error',
+            message: error.message
+        });
     }
 };
 
-module.exports = userController; 
+// Get user by ID
+const getUserById = async (req, res) => {
+    try {
+        const companyId = req.user.companyId;
+        const user = await UserModel.findOne({ 
+            _id: new ObjectId(req.params.userId),
+            companyId: new ObjectId(companyId)
+        });
+
+        if (!user) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'User not found'
+            });
+        }
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                user
+            }
+        });
+    } catch (error) {
+        console.error('Error getting user:', error);
+        res.status(500).json({
+            status: 'error',
+            message: error.message
+        });
+    }
+};
+
+// Create new user
+const createUser = async (req, res) => {
+    try {
+        const {
+            firstName,
+            lastName,
+            email,
+            phone,
+            role,
+            status,
+            companyId
+        } = req.body;
+
+        // Validate required fields
+        if (!firstName || !lastName || !email || !phone || !role || !status || !companyId) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'All fields are required'
+            });
+        }
+
+        // Validate role
+        const validRoles = ['admin', 'manager', 'user'];
+        if (!validRoles.includes(role)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid role'
+            });
+        }
+
+        // Validate status
+        const validStatuses = ['active', 'inactive'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid status'
+            });
+        }
+
+        // Check if user with same email exists in the same company
+        const existingUser = await UserModel.findOne({ 
+            email, 
+            companyId: new ObjectId(companyId) 
+        });
+        if (existingUser) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'User with this email already exists in your company'
+            });
+        }
+
+        const user = {
+            firstName,
+            lastName,
+            email,
+            phone,
+            role,
+            status,
+            companyId: new ObjectId(companyId),
+            createdAt: new Date(),
+            updatedAt: new Date()
+        };
+
+        const result = await UserModel.insertOne(user);
+        user._id = result.insertedId;
+
+        res.status(201).json({
+            status: 'success',
+            data: {
+                user
+            }
+        });
+    } catch (error) {
+        console.error('Error creating user:', error);
+        res.status(500).json({
+            status: 'error',
+            message: error.message
+        });
+    }
+};
+
+// Update user
+const updateUser = async (req, res) => {
+    try {
+        const companyId = req.user.companyId;
+        const user = await UserModel.findOne({ 
+            _id: new ObjectId(req.params.userId),
+            companyId: new ObjectId(companyId)
+        });
+
+        if (!user) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'User not found'
+            });
+        }
+
+        // Check if email is being updated and if it's already taken in the same company
+        if (req.body.email && req.body.email !== user.email) {
+            const existingUser = await UserModel.findOne({ 
+                email: req.body.email,
+                companyId: new ObjectId(companyId)
+            });
+            if (existingUser) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Email is already in use by another user in your company'
+                });
+            }
+        }
+
+        // Validate role if being updated
+        if (req.body.role) {
+            const validRoles = ['admin', 'manager', 'user'];
+            if (!validRoles.includes(req.body.role)) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Invalid role'
+                });
+            }
+        }
+
+        // Validate status if being updated
+        if (req.body.status) {
+            const validStatuses = ['active', 'inactive'];
+            if (!validStatuses.includes(req.body.status)) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Invalid status'
+                });
+            }
+        }
+
+        // Update only allowed fields
+        const allowedUpdates = [
+            'firstName',
+            'lastName',
+            'email',
+            'phone',
+            'role',
+            'status'
+        ];
+
+        const updates = {};
+        Object.keys(req.body).forEach(key => {
+            if (allowedUpdates.includes(key)) {
+                updates[key] = req.body[key];
+            }
+        });
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No valid fields to update'
+            });
+        }
+
+        updates.updatedAt = new Date();
+
+        const result = await UserModel.updateOne(
+            { _id: new ObjectId(req.params.userId), companyId: new ObjectId(companyId) },
+            { $set: updates }
+        );
+
+        if (result.modifiedCount === 0) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No updates were made'
+            });
+        }
+
+        const updatedUser = await UserModel.findOne({ 
+            _id: new ObjectId(req.params.userId),
+            companyId: new ObjectId(companyId)
+        });
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                user: updatedUser
+            }
+        });
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(500).json({
+            status: 'error',
+            message: error.message
+        });
+    }
+};
+
+// Delete user
+const deleteUser = async (req, res) => {
+    try {
+        const companyId = req.user.companyId;
+        const user = await UserModel.findOne({ 
+            _id: new ObjectId(req.params.userId),
+            companyId: new ObjectId(companyId)
+        });
+
+        if (!user) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'User not found'
+            });
+        }
+
+        await UserModel.deleteOne({ 
+            _id: new ObjectId(req.params.userId),
+            companyId: new ObjectId(companyId)
+        });
+
+        res.status(200).json({
+            status: 'success',
+            message: 'User deleted successfully'
+        });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({
+            status: 'error',
+            message: error.message
+        });
+    }
+};
+
+module.exports = {
+    getUsers,
+    getUserById,
+    createUser,
+    updateUser,
+    deleteUser
+}; 
