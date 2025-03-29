@@ -10,21 +10,31 @@ const authenticate = async (req, res, next) => {
         if (!token) {
             return res.status(401).json({
                 status: 'error',
-                message: 'Authentication required'
+                message: 'No authentication token provided'
             });
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
-        req.company = { _id: decoded.companyId };
-        next();
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+            req.user = decoded;
+            req.company = { _id: decoded.companyId };
+            next();
+        } catch (error) {
+            res.status(401).json({
+                status: 'error',
+                message: 'Invalid authentication token'
+            });
+        }
     } catch (error) {
-        res.status(401).json({
+        res.status(500).json({
             status: 'error',
-            message: 'Invalid or expired token'
+            message: error.message
         });
     }
 };
+
+// Alias for backward compatibility
+const auth = authenticate;
 
 // Authorization middleware
 const authorize = (roles) => {
@@ -55,7 +65,8 @@ const checkCompanyAccess = async (req, res, next) => {
 };
 
 module.exports = {
-    authenticate,
+    auth,
     authorize,
-    checkCompanyAccess
+    checkCompanyAccess,
+    authenticate
 }; 

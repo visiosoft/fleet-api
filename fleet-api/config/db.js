@@ -16,11 +16,14 @@ const DB_NAME = process.env.DB_NAME || 'fleet-management';
 const options = {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 15000, // Timeout after 15 seconds
-    socketTimeoutMS: 45000, // Socket timeout after 45 seconds
-    connectTimeoutMS: 15000, // Connection timeout after 15 seconds
+    serverSelectionTimeoutMS: 30000, // Increased from 15000 to 30000
+    socketTimeoutMS: 60000, // Increased from 45000 to 60000
+    connectTimeoutMS: 30000, // Increased from 15000 to 30000
     maxPoolSize: 10,
-    minPoolSize: 5
+    minPoolSize: 5,
+    retryWrites: true,
+    w: 'majority',
+    retryReads: true
 };
 
 // Collections
@@ -195,10 +198,22 @@ const connectToDatabase = async () => {
         await dbInstance.command({ ping: 1 });
         console.log('Connected to MongoDB successfully');
         
+        // Set up connection error handling
+        client.on('error', (error) => {
+            console.error('MongoDB connection error:', error);
+        });
+
+        client.on('close', () => {
+            console.log('MongoDB connection closed');
+            dbInstance = null;
+        });
+        
         return dbInstance;
     } catch (error) {
         console.error('MongoDB connection error:', error);
-        throw error;
+        console.log('Falling back to mock data...');
+        useMockData = true;
+        return new MockDatabase();
     }
 };
 

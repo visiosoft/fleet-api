@@ -15,6 +15,7 @@ const userRoutes = require('./routes/userRoutes');
 const costRoutes = require('./routes/costRoutes');
 const noteRoutes = require('./routes/noteRoutes');
 const payrollRoutes = require('./routes/payrollRoutes');
+const invoiceRoutes = require('./routes/invoiceRoutes');
 
 // Initialize Express app
 const app = express();
@@ -45,6 +46,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/costs', costRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/payroll', payrollRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 // Generic API routes for other collections
 const COLLECTIONS = db.COLLECTIONS;
