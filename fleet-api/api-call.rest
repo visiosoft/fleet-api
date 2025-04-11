@@ -1,0 +1,272 @@
+### Fleet Management API Requests
+### Use this file with REST Client extension in VS Code or similar tools
+
+@baseUrl = http://localhost:5000/api
+@authToken = YOUR_TOKEN_AFTER_LOGIN
+
+### Health Check
+GET {{baseUrl}}/health
+
+### AUTHENTICATION AND USER MANAGEMENT
+
+### Register a new company with admin user
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "companyData": {
+    "name": "My Fleet Company 2",
+    "address": "123 Fleet Street",
+    "city": "New York",
+    "state": "NY",
+    "zipCode": "10001",
+    "phone": "555-123-4567",
+    "email": "contact@myfleet2.com",
+    "status": "active"
+  },
+  "adminData": {
+    "firstName": "Admin",
+    "lastName": "User",
+    "email": "admin@myfleet2.com",
+    "password": "Admin@123",
+    "phone": "555-987-6543"
+  }
+}
+
+### Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "admin123"
+}
+
+### Get current user profile
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{authToken}}
+
+### DRIVER MANAGEMENT
+
+### Get all drivers
+GET {{baseUrl}}/drivers?page=1&limit=10
+Authorization: Bearer {{authToken}}
+
+### Create a new driver
+POST {{baseUrl}}/drivers
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe@example.com",
+  "phone": "555-123-4567",
+  "licenseNumber": "DL123456789",
+  "licenseExpiryDate": "2025-12-31",
+  "address": "456 Driver Ave",
+  "city": "Chicago",
+  "state": "IL",
+  "zipCode": "60601",
+  "dateOfBirth": "1985-05-15",
+  "dateOfHire": "2023-01-15",
+  "status": "active"
+}
+
+### Get driver by ID
+GET {{baseUrl}}/drivers/DRIVER_ID
+Authorization: Bearer {{authToken}}
+
+### Update driver
+PUT {{baseUrl}}/drivers/DRIVER_ID
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "phone": "555-999-8888",
+  "licenseExpiryDate": "2026-12-31",
+  "status": "active"
+}
+
+### Delete driver
+DELETE {{baseUrl}}/drivers/DRIVER_ID
+Authorization: Bearer {{authToken}}
+
+### VEHICLE MANAGEMENT
+
+### Get all vehicles
+GET {{baseUrl}}/vehicles?page=1&limit=10
+Authorization: Bearer {{authToken}}
+
+### Create a new vehicle
+POST {{baseUrl}}/vehicles
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "vehicleNumber": "V001",
+  "make": "Volvo",
+  "model": "VNL 860",
+  "year": 2022,
+  "vin": "1HGCM82633A123456",
+  "licensePlate": "TRK-1234",
+  "registrationExpiry": "2024-12-31",
+  "status": "active",
+  "fuelType": "diesel",
+  "tankCapacity": 150,
+  "currentOdometer": 0,
+  "purchaseDate": "2023-01-01",
+  "purchasePrice": 150000
+}
+
+### EXPENSE MANAGEMENT
+
+### Get all expenses
+GET {{baseUrl}}/expenses?page=1&limit=10
+Authorization: Bearer {{authToken}}
+
+### Create a new expense
+POST {{baseUrl}}/expenses
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "expenseType": "maintenance",
+  "amount": 350.75,
+  "date": "2023-06-15",
+  "description": "Oil change and basic maintenance",
+  "vehicleId": "VEHICLE_ID",
+  "driverId": "DRIVER_ID",
+  "vendor": "Truck Service Center",
+  "receiptNumber": "R-12345",
+  "paymentMethod": "credit card"
+}
+
+### FUEL MANAGEMENT
+
+### Get all fuel entries
+GET {{baseUrl}}/fuel?page=1&limit=10
+Authorization: Bearer {{authToken}}
+
+### Create a new fuel entry
+POST {{baseUrl}}/fuel
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "date": "2023-06-15",
+  "vehicleId": "VEHICLE_ID",
+  "driverId": "DRIVER_ID",
+  "gallons": 80.5,
+  "pricePerGallon": 3.759,
+  "totalCost": 302.59,
+  "odometer": 15250,
+  "location": "Flying J Truck Stop",
+  "fuelType": "diesel",
+  "paymentMethod": "fuel card",
+  "receiptNumber": "F-9876"
+}
+
+### MAINTENANCE MANAGEMENT
+
+### Get all maintenance records
+GET {{baseUrl}}/maintenance?page=1&limit=10
+Authorization: Bearer {{authToken}}
+
+### Create a new maintenance record
+POST {{baseUrl}}/maintenance
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "vehicleId": "VEHICLE_ID",
+  "serviceDate": "2023-06-15",
+  "serviceType": "preventive",
+  "description": "Regular 50,000 mile maintenance service",
+  "odometer": 50000,
+  "cost": 750.25,
+  "vendor": "Truck Service Pro",
+  "technicianName": "Mike Johnson",
+  "partsCost": 450.00,
+  "laborCost": 300.25,
+  "nextServiceDate": "2023-09-15",
+  "nextServiceOdometer": 60000
+}
+
+### INVOICE MANAGEMENT
+
+### Get all invoices
+GET {{baseUrl}}/invoices?page=1&limit=10
+Authorization: Bearer {{authToken}}
+
+### Create a new invoice
+POST {{baseUrl}}/invoices
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "invoiceNumber": "INV-2023-001",
+  "customer": "Customer Company Name",
+  "invoiceDate": "2023-06-30",
+  "dueDate": "2023-07-15",
+  "amount": 2500.00,
+  "status": "pending",
+  "description": "Freight services for June 2023",
+  "items": [
+    {
+      "description": "Route NY to LA",
+      "quantity": 1,
+      "unitPrice": 2500.00,
+      "amount": 2500.00
+    }
+  ]
+}
+
+### PAYROLL MANAGEMENT
+
+### Get all payroll entries
+GET {{baseUrl}}/payroll?page=1&limit=10
+Authorization: Bearer {{authToken}}
+
+### Create a new payroll entry
+POST {{baseUrl}}/payroll
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "driverId": "DRIVER_ID",
+  "payPeriodStart": "2023-06-01",
+  "payPeriodEnd": "2023-06-15",
+  "regularHours": 80,
+  "overtimeHours": 10,
+  "regularRate": 25.00,
+  "overtimeRate": 37.50,
+  "regularPay": 2000.00,
+  "overtimePay": 375.00,
+  "bonuses": 150.00,
+  "deductions": 300.00,
+  "netPay": 2225.00,
+  "paymentDate": "2023-06-20",
+  "paymentMethod": "direct deposit",
+  "notes": "End of month bonus included"
+}
+
+### DASHBOARD DATA
+
+### Get dashboard statistics
+GET {{baseUrl}}/dashboard/stats
+Authorization: Bearer {{authToken}}
+
+### Get expenses by category
+GET {{baseUrl}}/dashboard/expenses-by-category?startDate=2023-01-01&endDate=2023-12-31
+Authorization: Bearer {{authToken}}
+
+### Get monthly revenue
+GET {{baseUrl}}/dashboard/monthly-revenue?year=2023
+Authorization: Bearer {{authToken}}
+
+### Get vehicle utilization
+GET {{baseUrl}}/dashboard/vehicle-utilization
+Authorization: Bearer {{authToken}} 

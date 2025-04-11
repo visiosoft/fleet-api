@@ -12,8 +12,26 @@ const DriverController = {
    */
   async getAllDrivers(req, res) {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+
+      console.log(`Fetching drivers for company ID: ${companyId}`);
+      
       const collection = await DriverModel.getCollection();
-      const drivers = await collection.find({}).toArray();
+      
+      // Filter drivers by company ID
+      const drivers = await collection.find({ 
+        companyId: companyId.toString() 
+      }).toArray();
+      
+      console.log(`Found ${drivers.length} drivers for company ID: ${companyId}`);
       
       res.status(200).json(drivers);
     } catch (error) {
@@ -35,6 +53,16 @@ const DriverController = {
     try {
       const { id } = req.params;
       
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
       if (!ObjectId.isValid(id)) {
         return res.status(400).json({ 
           status: 'error', 
@@ -43,7 +71,10 @@ const DriverController = {
       }
       
       const collection = await DriverModel.getCollection();
-      const driver = await collection.findOne({ _id: new ObjectId(id) });
+      const driver = await collection.findOne({ 
+        _id: new ObjectId(id),
+        companyId: companyId.toString() 
+      });
       
       if (!driver) {
         return res.status(404).json({ 
@@ -71,6 +102,19 @@ const DriverController = {
   async createDriver(req, res) {
     try {
       const driverData = req.body;
+      
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
+      // Add company ID to driver data
+      driverData.companyId = companyId.toString();
       
       // Validate driver data
       const validation = DriverModel.validate(driverData);
@@ -114,6 +158,16 @@ const DriverController = {
       const { id } = req.params;
       const updateData = req.body;
       
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
       if (!ObjectId.isValid(id)) {
         return res.status(400).json({ 
           status: 'error', 
@@ -121,9 +175,12 @@ const DriverController = {
         });
       }
       
-      // Check if driver exists
+      // Check if driver exists and belongs to this company
       const collection = await DriverModel.getCollection();
-      const existingDriver = await collection.findOne({ _id: new ObjectId(id) });
+      const existingDriver = await collection.findOne({ 
+        _id: new ObjectId(id),
+        companyId: companyId.toString()
+      });
       
       if (!existingDriver) {
         return res.status(404).json({ 
@@ -135,14 +192,15 @@ const DriverController = {
       // Prepare data for update
       const preparedData = DriverModel.prepareData({
         ...existingDriver,
-        ...updateData
+        ...updateData,
+        companyId: companyId.toString() // Ensure company ID remains the same
       });
       
       // Remove _id field from update data
       delete preparedData._id;
       
       const result = await collection.updateOne(
-        { _id: new ObjectId(id) },
+        { _id: new ObjectId(id), companyId: companyId.toString() },
         { $set: preparedData }
       );
       
@@ -180,6 +238,16 @@ const DriverController = {
     try {
       const { id } = req.params;
       
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
       if (!ObjectId.isValid(id)) {
         return res.status(400).json({ 
           status: 'error', 
@@ -188,7 +256,10 @@ const DriverController = {
       }
       
       const collection = await DriverModel.getCollection();
-      const result = await collection.deleteOne({ _id: new ObjectId(id) });
+      const result = await collection.deleteOne({ 
+        _id: new ObjectId(id),
+        companyId: companyId.toString()
+      });
       
       if (result.deletedCount === 0) {
         return res.status(404).json({ 
@@ -218,8 +289,21 @@ const DriverController = {
    */
   async searchDrivers(req, res) {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
       // Build query from request parameters
-      const query = {};
+      const query = {
+        // Always filter by company ID
+        companyId: companyId.toString()
+      };
       
       // Handle name search (first or last name)
       if (req.query.name) {
@@ -254,8 +338,12 @@ const DriverController = {
         }
       }
       
+      console.log('Search drivers with query:', query);
+      
       const collection = await DriverModel.getCollection();
       const drivers = await collection.find(query).toArray();
+      
+      console.log(`Found ${drivers.length} drivers matching search criteria for company ${companyId}`);
       
       res.status(200).json(drivers);
     } catch (error) {

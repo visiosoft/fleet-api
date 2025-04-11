@@ -1,11 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const driverController = require('../controllers/driverController');
+const { authenticate } = require('../middleware/auth');
 
 /**
  * Driver API Routes
  * Base path: /api/drivers
+ * All routes require authentication
  */
+
+// Apply authentication middleware to all driver routes
+router.use(authenticate);
 
 // GET /api/drivers - Get all drivers
 router.get('/', driverController.getAllDrivers);

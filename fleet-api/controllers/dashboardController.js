@@ -9,17 +9,33 @@ const DashboardController = {
    */
   async getActiveCounts(req, res) {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
+      console.log(`Fetching active counts for company ID: ${companyId}`);
+      
       // Get vehicle collection
       const vehicleCollection = await db.getCollection('vehicles');
       const activeVehicles = await vehicleCollection.find({ 
-        status: 'active' 
+        status: 'active',
+        companyId: companyId.toString()
       }).toArray();
 
       // Get driver collection
       const driverCollection = await db.getCollection('drivers');
       const activeDrivers = await driverCollection.find({ 
-        status: 'active' 
+        status: 'active',
+        companyId: companyId.toString()
       }).toArray();
+
+      console.log(`Found ${activeVehicles.length} active vehicles and ${activeDrivers.length} active drivers for company ${companyId}`);
 
       res.status(200).json({
         status: 'success',
@@ -47,11 +63,26 @@ const DashboardController = {
    */
   async getActiveVehicles(req, res) {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
+      console.log(`Fetching active vehicles for company ID: ${companyId}`);
+      
       const collection = await db.getCollection('vehicles');
       const activeVehicles = await collection.find({ 
-        status: 'active' 
+        status: 'active',
+        companyId: companyId.toString()
       }).toArray();
 
+      console.log(`Found ${activeVehicles.length} active vehicles for company ${companyId}`);
+      
       res.status(200).json({
         status: 'success',
         data: {
@@ -76,11 +107,26 @@ const DashboardController = {
    */
   async getActiveDrivers(req, res) {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
+      console.log(`Fetching active drivers for company ID: ${companyId}`);
+      
       const collection = await db.getCollection('drivers');
       const activeDrivers = await collection.find({ 
-        status: 'active' 
+        status: 'active',
+        companyId: companyId.toString()
       }).toArray();
 
+      console.log(`Found ${activeDrivers.length} active drivers for company ${companyId}`);
+      
       res.status(200).json({
         status: 'success',
         data: {
@@ -105,6 +151,18 @@ const DashboardController = {
    */
   async getCurrentMonthFuelCost(req, res) {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
+      console.log(`Fetching fuel costs for company ID: ${companyId}`);
+      
       const collection = await db.getCollection('expenses');
       
       // Get current month's start and end dates
@@ -119,7 +177,8 @@ const DashboardController = {
             date: {
               $gte: startOfMonth,
               $lte: endOfMonth
-            }
+            },
+            companyId: companyId.toString()
           }
         },
         {
@@ -158,6 +217,8 @@ const DashboardController = {
         });
       }
 
+      console.log(`Found ${result[0].totalTransactions} fuel transactions for company ${companyId}`);
+      
       res.status(200).json({
         status: 'success',
         data: result[0]
@@ -179,6 +240,18 @@ const DashboardController = {
    */
   async getCurrentMonthFuelByVehicle(req, res) {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
+      console.log(`Fetching fuel by vehicle for company ID: ${companyId}`);
+      
       const collection = await db.getCollection('expenses');
       
       // Get current month's start and end dates
@@ -193,7 +266,8 @@ const DashboardController = {
             date: {
               $gte: startOfMonth,
               $lte: endOfMonth
-            }
+            },
+            companyId: companyId.toString()
           }
         },
         {
@@ -210,6 +284,11 @@ const DashboardController = {
             localField: '_id',
             foreignField: '_id',
             as: 'vehicleInfo'
+          }
+        },
+        {
+          $match: {
+            'vehicleInfo.companyId': companyId.toString()
           }
         },
         {
@@ -230,6 +309,8 @@ const DashboardController = {
 
       const result = await collection.aggregate(pipeline).toArray();
 
+      console.log(`Found ${result.length} vehicles with fuel transactions for company ${companyId}`);
+      
       res.status(200).json({
         status: 'success',
         data: {
@@ -257,6 +338,18 @@ const DashboardController = {
    */
   async getCurrentMonthMaintenanceCost(req, res) {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
+      console.log(`Fetching maintenance costs for company ID: ${companyId}`);
+      
       const collection = await db.getCollection('expenses');
       
       // Get current month's start and end dates
@@ -271,7 +364,8 @@ const DashboardController = {
             date: {
               $gte: startOfMonth,
               $lte: endOfMonth
-            }
+            },
+            companyId: companyId.toString()
           }
         },
         {
@@ -309,6 +403,8 @@ const DashboardController = {
           }
         });
       }
+      
+      console.log(`Found ${result[0].totalTransactions} maintenance transactions for company ${companyId}`);
 
       res.status(200).json({
         status: 'success',
@@ -331,6 +427,18 @@ const DashboardController = {
    */
   async getCurrentMonthMaintenanceByVehicle(req, res) {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
+      console.log(`Fetching maintenance by vehicle for company ID: ${companyId}`);
+      
       const collection = await db.getCollection('expenses');
       
       // Get current month's start and end dates
@@ -345,7 +453,8 @@ const DashboardController = {
             date: {
               $gte: startOfMonth,
               $lte: endOfMonth
-            }
+            },
+            companyId: companyId.toString()
           }
         },
         {
@@ -365,6 +474,11 @@ const DashboardController = {
           }
         },
         {
+          $match: {
+            'vehicleInfo.companyId': companyId.toString()
+          }
+        },
+        {
           $project: {
             _id: 1,
             totalCost: 1,
@@ -381,6 +495,8 @@ const DashboardController = {
       ];
 
       const result = await collection.aggregate(pipeline).toArray();
+      
+      console.log(`Found ${result.length} vehicles with maintenance transactions for company ${companyId}`);
 
       res.status(200).json({
         status: 'success',
@@ -409,6 +525,18 @@ const DashboardController = {
    */
   async getContractStats(req, res) {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
+      console.log(`Fetching contract stats for company ID: ${companyId}`);
+      
       const collection = await db.getCollection('contracts');
       const now = new Date();
       
@@ -417,7 +545,10 @@ const DashboardController = {
       expiringSoonDate.setDate(expiringSoonDate.getDate() + 7);
 
       // First, let's get all contracts to debug
-      const allContracts = await collection.find({}).toArray();
+      const allContracts = await collection.find({
+        companyId: companyId.toString()
+      }).toArray();
+      
       console.log('Total contracts found:', allContracts.length);
       console.log('Current date:', now);
 
@@ -435,6 +566,11 @@ const DashboardController = {
       });
 
       const pipeline = [
+        {
+          $match: {
+            companyId: companyId.toString()
+          }
+        },
         {
           $addFields: {
             // Convert string dates to Date objects if they aren't already
@@ -545,6 +681,8 @@ const DashboardController = {
         parsed: Number(c.value)
       })));
 
+      console.log(`Found ${allContracts.length} total contracts, ${manualCounts.active} active, ${manualCounts.expiringSoon} expiring soon for company ${companyId}`);
+      
       res.status(200).json({
         status: 'success',
         data: {

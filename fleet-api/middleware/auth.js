@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const Company = require('../models/Company');
+const { ObjectId } = require('mongodb');
+const db = require('../config/db');
 
 // Authentication middleware
 const authenticate = async (req, res, next) => {
@@ -16,8 +16,17 @@ const authenticate = async (req, res, next) => {
 
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+            
+            // Store decoded token info in request
             req.user = decoded;
-            req.company = { _id: decoded.companyId };
+            
+            // Add convenience methods to check company access
+            req.hasCompanyAccess = (companyId) => {
+                if (!companyId) return false;
+                const tokenCompanyId = decoded.companyId;
+                return tokenCompanyId === companyId.toString();
+            };
+            
             next();
         } catch (error) {
             res.status(401).json({
@@ -54,13 +63,20 @@ const checkCompanyAccess = async (req, res, next) => {
         // For company-specific routes, verify the user belongs to the requested company
         const requestedCompanyId = req.params.companyId || req.body.companyId;
         
-        if (requestedCompanyId && requestedCompanyId !== req.user.company.toString()) {
-            return res.status(403).json({ message: 'Access denied to this company' });
+        if (requestedCompanyId && !req.hasCompanyAccess(requestedCompanyId)) {
+            return res.status(403).json({ 
+                status: 'error',
+                message: 'Access denied to this company' 
+            });
         }
         
         next();
     } catch (error) {
-        res.status(500).json({ message: 'Error checking company access' });
+        res.status(500).json({ 
+            status: 'error',
+            message: 'Error checking company access',
+            error: error.message
+        });
     }
 };
 

@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const ExpenseController = require('../controllers/expenseController');
+const { authenticate } = require('../middleware/auth');
+
+// Apply authentication middleware to all expense routes
+router.use(authenticate);
 
 // Get all expenses
 router.get('/', ExpenseController.getAllExpenses);

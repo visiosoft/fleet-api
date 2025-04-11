@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const costController = require('../controllers/costController');
 const db = require('../config/db');
+const { authenticate } = require('../middleware/auth');
+
+// Apply authentication middleware to all cost routes
+router.use(authenticate);
 
 /**
  * @swagger

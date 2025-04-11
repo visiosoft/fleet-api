@@ -6,10 +6,26 @@ const { validateObjectId } = require('../utils/validation');
 // Get all invoices
 exports.getAllInvoices = async (req, res) => {
     try {
+        // Get company ID from authenticated user
+        const companyId = req.user.companyId;
+        
+        if (!companyId) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Company ID not found in user token'
+            });
+        }
+        
+        console.log(`Fetching invoices for company ID: ${companyId}`);
+        
         const collection = await InvoiceModel.getCollection();
-        const invoices = await collection.find({})
+        const invoices = await collection.find({
+            companyId: companyId.toString()
+        })
             .sort({ createdAt: -1 })
             .toArray();
+        
+        console.log(`Found ${invoices.length} invoices for company ${companyId}`);
         
         res.status(200).json({
             status: 'success',
@@ -27,8 +43,24 @@ exports.getAllInvoices = async (req, res) => {
 // Get single invoice by ID
 exports.getInvoiceById = async (req, res) => {
     try {
+        // Get company ID from authenticated user
+        const companyId = req.user.companyId;
+        
+        if (!companyId) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Company ID not found in user token'
+            });
+        }
+        
+        const id = req.params.id;
+        console.log(`Fetching invoice ${id} for company ID: ${companyId}`);
+        
         const collection = await InvoiceModel.getCollection();
-        const invoice = await collection.findOne({ _id: new ObjectId(req.params.id) });
+        const invoice = await collection.findOne({ 
+            _id: new ObjectId(id),
+            companyId: companyId.toString()
+        });
 
         if (!invoice) {
             return res.status(404).json({
@@ -36,6 +68,8 @@ exports.getInvoiceById = async (req, res) => {
                 message: 'Invoice not found'
             });
         }
+        
+        console.log(`Found invoice ${id}`);
 
         res.status(200).json({
             status: 'success',
@@ -53,20 +87,41 @@ exports.getInvoiceById = async (req, res) => {
 // Create new invoice
 exports.createInvoice = async (req, res) => {
     try {
+        // Get company ID from authenticated user
+        const companyId = req.user.companyId;
+        
+        if (!companyId) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Company ID not found in user token'
+            });
+        }
+        
+        console.log(`Creating invoice for company ID: ${companyId}`);
+        
         const { contractId, invoiceNumber, issueDate, dueDate, items, tax, notes } = req.body;
 
-        // Check if contract exists
-        const contract = await ContractModel.findOne({ _id: new ObjectId(contractId) });
+        // Check if contract exists and belongs to company
+        const contractCollection = await ContractModel.getCollection();
+        const contract = await contractCollection.findOne({ 
+            _id: new ObjectId(contractId),
+            companyId: companyId.toString()
+        });
+        
         if (!contract) {
             return res.status(404).json({
                 status: 'error',
-                message: 'Contract not found'
+                message: 'Contract not found or belongs to another company'
             });
         }
 
-        // Check if invoice number is unique
+        // Check if invoice number is unique within company
         const collection = await InvoiceModel.getCollection();
-        const existingInvoice = await collection.findOne({ invoiceNumber });
+        const existingInvoice = await collection.findOne({ 
+            invoiceNumber,
+            companyId: companyId.toString()
+        });
+        
         if (existingInvoice) {
             return res.status(400).json({
                 status: 'error',
@@ -83,12 +138,15 @@ exports.createInvoice = async (req, res) => {
             tax,
             notes,
             status: 'draft',
+            companyId: companyId.toString(),
             createdAt: new Date(),
             updatedAt: new Date()
         };
 
         const result = await collection.insertOne(invoice);
         invoice._id = result.insertedId;
+        
+        console.log(`Invoice created with ID: ${result.insertedId}`);
 
         res.status(201).json({
             status: 'success',
@@ -106,8 +164,24 @@ exports.createInvoice = async (req, res) => {
 // Update invoice
 exports.updateInvoice = async (req, res) => {
     try {
+        // Get company ID from authenticated user
+        const companyId = req.user.companyId;
+        
+        if (!companyId) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Company ID not found in user token'
+            });
+        }
+        
+        const id = req.params.id;
+        console.log(`Updating invoice ${id} for company ID: ${companyId}`);
+        
         const collection = await InvoiceModel.getCollection();
-        const invoice = await collection.findOne({ _id: new ObjectId(req.params.id) });
+        const invoice = await collection.findOne({ 
+            _id: new ObjectId(id),
+            companyId: companyId.toString()
+        });
         
         if (!invoice) {
             return res.status(404).json({
@@ -125,9 +199,10 @@ exports.updateInvoice = async (req, res) => {
             updateData[update] = req.body[update];
         });
         updateData.updatedAt = new Date();
+        updateData.companyId = companyId.toString(); // Ensure company ID doesn't change
 
         const result = await collection.updateOne(
-            { _id: new ObjectId(req.params.id) },
+            { _id: new ObjectId(id), companyId: companyId.toString() },
             { $set: updateData }
         );
 
@@ -138,7 +213,9 @@ exports.updateInvoice = async (req, res) => {
             });
         }
 
-        const updatedInvoice = await collection.findOne({ _id: new ObjectId(req.params.id) });
+        const updatedInvoice = await collection.findOne({ _id: new ObjectId(id) });
+        
+        console.log(`Invoice ${id} updated successfully`);
 
         res.status(200).json({
             status: 'success',
@@ -156,8 +233,38 @@ exports.updateInvoice = async (req, res) => {
 // Delete invoice
 exports.deleteInvoice = async (req, res) => {
     try {
+        // Get company ID from authenticated user
+        const companyId = req.user.companyId;
+        
+        if (!companyId) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Company ID not found in user token'
+            });
+        }
+        
+        const id = req.params.id;
+        console.log(`Deleting invoice ${id} for company ID: ${companyId}`);
+        
         const collection = await InvoiceModel.getCollection();
-        const result = await collection.deleteOne({ _id: new ObjectId(req.params.id) });
+        
+        // Verify invoice belongs to company before deleting
+        const invoiceToDelete = await collection.findOne({
+            _id: new ObjectId(id),
+            companyId: companyId.toString()
+        });
+        
+        if (!invoiceToDelete) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Invoice not found'
+            });
+        }
+        
+        const result = await collection.deleteOne({ 
+            _id: new ObjectId(id),
+            companyId: companyId.toString()
+        });
 
         if (result.deletedCount === 0) {
             return res.status(404).json({
@@ -165,6 +272,8 @@ exports.deleteInvoice = async (req, res) => {
                 message: 'Invoice not found'
             });
         }
+        
+        console.log(`Invoice ${id} deleted successfully`);
 
         res.status(200).json({
             status: 'success',
@@ -182,8 +291,25 @@ exports.deleteInvoice = async (req, res) => {
 // Get invoice statistics
 exports.getInvoiceStats = async (req, res) => {
     try {
+        // Get company ID from authenticated user
+        const companyId = req.user.companyId;
+        
+        if (!companyId) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Company ID not found in user token'
+            });
+        }
+        
+        console.log(`Fetching invoice statistics for company ID: ${companyId}`);
+        
         const collection = await InvoiceModel.getCollection();
         const stats = await collection.aggregate([
+            {
+                $match: {
+                    companyId: companyId.toString()
+                }
+            },
             {
                 $group: {
                     _id: '$status',
@@ -193,10 +319,25 @@ exports.getInvoiceStats = async (req, res) => {
             }
         ]).toArray();
 
-        const totalInvoices = await collection.countDocuments();
+        const totalInvoices = await collection.countDocuments({
+            companyId: companyId.toString()
+        });
+        
         const totalAmount = await collection.aggregate([
-            { $group: { _id: null, total: { $sum: '$total' } } }
+            { 
+                $match: { 
+                    companyId: companyId.toString() 
+                } 
+            },
+            { 
+                $group: { 
+                    _id: null, 
+                    total: { $sum: '$total' } 
+                } 
+            }
         ]).toArray();
+        
+        console.log(`Found statistics for ${totalInvoices} invoices`);
 
         res.status(200).json({
             status: 'success',

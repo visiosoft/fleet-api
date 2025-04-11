@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const DashboardController = require('../controllers/dashboardController');
+const { authenticate } = require('../middleware/auth');
+
+// Apply authentication middleware to all dashboard routes
+router.use(authenticate);
 
 // Get both active vehicles and drivers counts
 router.get('/active-counts', DashboardController.getActiveCounts);

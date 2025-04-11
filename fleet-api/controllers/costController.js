@@ -7,14 +7,28 @@ const costController = {
      */
     async getVehicleCosts(req, res) {
         try {
+            // Get company ID from authenticated user
+            const companyId = req.user.companyId;
+            
+            if (!companyId) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Company ID not found in user token'
+                });
+            }
+            
+            console.log(`Fetching costs for company ID: ${companyId}`);
+            
             const vehicles = await db.getCollection('vehicles');
             const expenses = await db.getCollection('expenses');
             const fuel = await db.getCollection('fuel');
             const maintenance = await db.getCollection('maintenance');
 
-            // Get all vehicles
-            const vehiclesList = await vehicles.find({}).toArray();
-            console.log(`Found ${vehiclesList.length} vehicles`);
+            // Get all vehicles for this company
+            const vehiclesList = await vehicles.find({ 
+                companyId: companyId.toString() 
+            }).toArray();
+            console.log(`Found ${vehiclesList.length} vehicles for company ${companyId}`);
             
             // Get costs for each vehicle
             const vehicleCosts = await Promise.all(vehiclesList.map(async (vehicle) => {
@@ -22,7 +36,10 @@ const costController = {
                 console.log(`Processing vehicle: ${vehicleId}`);
 
                 // Get expenses for this vehicle
-                const vehicleExpenses = await expenses.find({ vehicleId }).toArray();
+                const vehicleExpenses = await expenses.find({ 
+                    vehicleId,
+                    companyId: companyId.toString()
+                }).toArray();
                 console.log(`Found ${vehicleExpenses.length} expenses for vehicle ${vehicleId}`);
                 console.log('Expense records:', JSON.stringify(vehicleExpenses, null, 2));
                 const totalExpenses = vehicleExpenses.reduce((sum, expense) => {
@@ -32,7 +49,10 @@ const costController = {
                 }, 0);
 
                 // Get fuel costs for this vehicle
-                const vehicleFuel = await fuel.find({ vehicleId }).toArray();
+                const vehicleFuel = await fuel.find({ 
+                    vehicleId,
+                    companyId: companyId.toString()
+                }).toArray();
                 console.log(`Found ${vehicleFuel.length} fuel records for vehicle ${vehicleId}`);
                 console.log('Fuel records:', JSON.stringify(vehicleFuel, null, 2));
                 const totalFuel = vehicleFuel.reduce((sum, fuel) => {
@@ -42,7 +62,10 @@ const costController = {
                 }, 0);
 
                 // Get maintenance costs for this vehicle
-                const vehicleMaintenance = await maintenance.find({ vehicleId }).toArray();
+                const vehicleMaintenance = await maintenance.find({ 
+                    vehicleId,
+                    companyId: companyId.toString()
+                }).toArray();
                 console.log(`Found ${vehicleMaintenance.length} maintenance records for vehicle ${vehicleId}`);
                 console.log('Maintenance records:', JSON.stringify(vehicleMaintenance, null, 2));
                 const totalMaintenance = vehicleMaintenance.reduce((sum, maintenance) => {
@@ -103,23 +126,47 @@ const costController = {
      */
     async getVehicleCostBreakdown(req, res) {
         try {
+            // Get company ID from authenticated user
+            const companyId = req.user.companyId;
+            
+            if (!companyId) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Company ID not found in user token'
+                });
+            }
+            
             const { vehicleId } = req.params;
+            console.log(`Fetching cost breakdown for vehicle ${vehicleId} in company ${companyId}`);
+            
             const expenses = await db.getCollection('expenses');
             const fuel = await db.getCollection('fuel');
             const maintenance = await db.getCollection('maintenance');
             const vehicles = await db.getCollection('vehicles');
 
             // Get vehicle details
-            const vehicle = await vehicles.findOne({ _id: new ObjectId(vehicleId) });
+            const vehicle = await vehicles.findOne({ 
+                _id: new ObjectId(vehicleId),
+                companyId: companyId.toString()
+            });
             if (!vehicle) {
                 return res.status(404).json({ message: 'Vehicle not found' });
             }
 
             // Get all costs for this vehicle
             const [vehicleExpenses, vehicleFuel, vehicleMaintenance] = await Promise.all([
-                expenses.find({ vehicleId }).toArray(),
-                fuel.find({ vehicleId }).toArray(),
-                maintenance.find({ vehicleId }).toArray()
+                expenses.find({ 
+                    vehicleId,
+                    companyId: companyId.toString()
+                }).toArray(),
+                fuel.find({ 
+                    vehicleId,
+                    companyId: companyId.toString()
+                }).toArray(),
+                maintenance.find({ 
+                    vehicleId,
+                    companyId: companyId.toString()
+                }).toArray()
             ]);
 
             console.log(`Found ${vehicleExpenses.length} expenses for vehicle ${vehicleId}`);
@@ -183,6 +230,18 @@ const costController = {
      */
     async getCurrentMonthExpenses(req, res) {
         try {
+            // Get company ID from authenticated user
+            const companyId = req.user.companyId;
+            
+            if (!companyId) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Company ID not found in user token'
+                });
+            }
+            
+            console.log(`Fetching current month expenses for company ID: ${companyId}`);
+            
             const vehicles = await db.getCollection('vehicles');
             const expenses = await db.getCollection('expenses');
 
@@ -191,9 +250,11 @@ const costController = {
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
             const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-            // Get all vehicles
-            const vehiclesList = await vehicles.find({}).toArray();
-            console.log(`Found ${vehiclesList.length} vehicles`);
+            // Get all vehicles for this company
+            const vehiclesList = await vehicles.find({
+                companyId: companyId.toString()
+            }).toArray();
+            console.log(`Found ${vehiclesList.length} vehicles for company ${companyId}`);
             
             // Get expenses for each vehicle for current month
             const vehicleExpenses = await Promise.all(vehiclesList.map(async (vehicle) => {
@@ -203,6 +264,7 @@ const costController = {
                 // Get expenses for this vehicle for current month
                 const vehicleExpensesList = await expenses.find({
                     vehicleId,
+                    companyId: companyId.toString(),
                     date: {
                         $gte: startOfMonth,
                         $lte: endOfMonth
@@ -253,24 +315,41 @@ const costController = {
      */
     async getCurrentMonthVehicleExpenses(req, res) {
         try {
+            // Get company ID from authenticated user
+            const companyId = req.user.companyId;
+            
+            if (!companyId) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Company ID not found in user token'
+                });
+            }
+            
             const { vehicleId } = req.params;
-            const expenses = await db.getCollection('expenses');
+            console.log(`Fetching current month expenses for vehicle ${vehicleId} in company ${companyId}`);
+            
+            // Get vehicle details and make sure it belongs to this company
             const vehicles = await db.getCollection('vehicles');
-
+            const expenses = await db.getCollection('expenses');
+            
             // Get current month's start and end dates
             const now = new Date();
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
             const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-            // Get vehicle details
-            const vehicle = await vehicles.findOne({ _id: new ObjectId(vehicleId) });
+            
+            const vehicle = await vehicles.findOne({ 
+                _id: new ObjectId(vehicleId),
+                companyId: companyId.toString()
+            });
+            
             if (!vehicle) {
                 return res.status(404).json({ message: 'Vehicle not found' });
             }
-
+            
             // Get expenses for this vehicle for current month
             const vehicleExpenses = await expenses.find({
                 vehicleId,
+                companyId: companyId.toString(),
                 date: {
                     $gte: startOfMonth,
                     $lte: endOfMonth

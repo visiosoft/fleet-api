@@ -6,6 +6,9 @@ require('dotenv').config();
 // Import database configuration
 const db = require('./config/db');
 
+// Import middleware
+const { authenticate } = require('./middleware/auth');
+
 // Import routes
 const driverRoutes = require('./routes/driverRoutes');
 const expenseRoutes = require('./routes/expenseRoutes');
@@ -57,10 +60,23 @@ delete COLLECTIONS.expenses; // We have a dedicated route for expenses
 
 Object.entries(COLLECTIONS).forEach(([key, collectionName]) => {
   // Get all documents
-  app.get(`/api/${collectionName}`, async (req, res) => {
+  app.get(`/api/${collectionName}`, authenticate, async (req, res) => {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
       const collection = await db.getCollection(collectionName);
-      const result = await collection.find({}).toArray();
+      const result = await collection.find({ 
+        companyId: companyId.toString() 
+      }).toArray();
+      
       res.status(200).json(result);
     } catch (error) {
       console.error(`Error getting all ${collectionName}:`, error);
@@ -69,11 +85,24 @@ Object.entries(COLLECTIONS).forEach(([key, collectionName]) => {
   });
 
   // Get document by ID
-  app.get(`/api/${collectionName}/:id`, async (req, res) => {
+  app.get(`/api/${collectionName}/:id`, authenticate, async (req, res) => {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
       const id = req.params.id;
       const collection = await db.getCollection(collectionName);
-      const result = await collection.findOne({ _id: new ObjectId(id) });
+      const result = await collection.findOne({ 
+        _id: new ObjectId(id),
+        companyId: companyId.toString()
+      });
       
       if (!result) {
         return res.status(404).json({ status: 'error', message: `${key} not found` });
@@ -87,9 +116,25 @@ Object.entries(COLLECTIONS).forEach(([key, collectionName]) => {
   });
 
   // Create new document
-  app.post(`/api/${collectionName}`, async (req, res) => {
+  app.post(`/api/${collectionName}`, authenticate, async (req, res) => {
     try {
-      const newDoc = req.body;
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
+      const newDoc = {
+        ...req.body,
+        companyId: companyId.toString(),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
       const collection = await db.getCollection(collectionName);
       const result = await collection.insertOne(newDoc);
       
@@ -105,14 +150,44 @@ Object.entries(COLLECTIONS).forEach(([key, collectionName]) => {
   });
 
   // Update document
-  app.put(`/api/${collectionName}/:id`, async (req, res) => {
+  app.put(`/api/${collectionName}/:id`, authenticate, async (req, res) => {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
       const id = req.params.id;
-      const updateData = req.body;
+      const updateData = {
+        ...req.body,
+        updatedAt: new Date()
+      };
+      
+      // Ensure companyId cannot be changed
+      delete updateData.companyId;
+      
       const collection = await db.getCollection(collectionName);
       
+      // First check if document exists and belongs to this company
+      const existingDoc = await collection.findOne({
+        _id: new ObjectId(id),
+        companyId: companyId.toString()
+      });
+      
+      if (!existingDoc) {
+        return res.status(404).json({ 
+          status: 'error', 
+          message: `${key} not found or access denied` 
+        });
+      }
+      
       const result = await collection.updateOne(
-        { _id: new ObjectId(id) },
+        { _id: new ObjectId(id), companyId: companyId.toString() },
         { $set: updateData }
       );
       
@@ -129,12 +204,38 @@ Object.entries(COLLECTIONS).forEach(([key, collectionName]) => {
   });
 
   // Delete document
-  app.delete(`/api/${collectionName}/:id`, async (req, res) => {
+  app.delete(`/api/${collectionName}/:id`, authenticate, async (req, res) => {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
       const id = req.params.id;
       const collection = await db.getCollection(collectionName);
       
-      const result = await collection.deleteOne({ _id: new ObjectId(id) });
+      // Check if document exists and belongs to this company
+      const existingDoc = await collection.findOne({
+        _id: new ObjectId(id),
+        companyId: companyId.toString()
+      });
+      
+      if (!existingDoc) {
+        return res.status(404).json({ 
+          status: 'error', 
+          message: `${key} not found or access denied` 
+        });
+      }
+      
+      const result = await collection.deleteOne({ 
+        _id: new ObjectId(id),
+        companyId: companyId.toString()
+      });
       
       if (result.deletedCount === 0) {
         return res.status(404).json({ status: 'error', message: `${key} not found` });
@@ -148,10 +249,23 @@ Object.entries(COLLECTIONS).forEach(([key, collectionName]) => {
   });
 
   // Search documents
-  app.get(`/api/${collectionName}/search`, async (req, res) => {
+  app.get(`/api/${collectionName}/search`, authenticate, async (req, res) => {
     try {
+      // Get company ID from authenticated user
+      const companyId = req.user.companyId;
+      
+      if (!companyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Company ID not found in user token'
+        });
+      }
+      
       // Convert query params to MongoDB query
-      const query = {};
+      const query = {
+        // Always filter by company ID
+        companyId: companyId.toString()
+      };
       
       // Remove non-filter parameters
       const { page, limit, sort, ...filters } = req.query;

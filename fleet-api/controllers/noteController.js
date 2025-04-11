@@ -8,8 +8,25 @@ const noteController = {
      */
     async getAllNotes(req, res) {
         try {
+            // Get company ID from authenticated user
+            const companyId = req.user.companyId;
+            
+            if (!companyId) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Company ID not found in user token'
+                });
+            }
+            
+            console.log(`Fetching notes for company ID: ${companyId}`);
+            
             const notes = await db.getCollection('notes');
-            const result = await notes.find({}).sort({ createdAt: -1 }).toArray();
+            const result = await notes.find({ 
+                companyId: companyId.toString() 
+            }).sort({ createdAt: -1 }).toArray();
+            
+            console.log(`Found ${result.length} notes for company ${companyId}`);
+            
             res.json({ notes: result });
         } catch (error) {
             console.error('Error getting notes:', error);
@@ -22,6 +39,18 @@ const noteController = {
      */
     async createNote(req, res) {
         try {
+            // Get company ID from authenticated user
+            const companyId = req.user.companyId;
+            
+            if (!companyId) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Company ID not found in user token'
+                });
+            }
+            
+            console.log(`Creating note for company ID: ${companyId}`);
+            
             const { title, content, category, priority, status, reminder } = req.body;
 
             // Validate required fields
@@ -68,6 +97,7 @@ const noteController = {
                 priority: priority || 'medium',
                 status: status || 'active',
                 reminder: reminder || null,
+                companyId: companyId.toString(),
                 createdAt: new Date(),
                 updatedAt: new Date()
             };
@@ -79,6 +109,8 @@ const noteController = {
             if (reminder) {
                 await scheduleReminder(createdNote);
             }
+            
+            console.log(`Note created with ID: ${result.insertedId}`);
 
             res.status(201).json(createdNote);
         } catch (error) {
@@ -92,7 +124,19 @@ const noteController = {
      */
     async updateNote(req, res) {
         try {
+            // Get company ID from authenticated user
+            const companyId = req.user.companyId;
+            
+            if (!companyId) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Company ID not found in user token'
+                });
+            }
+            
             const { id } = req.params;
+            console.log(`Updating note ${id} for company ID: ${companyId}`);
+            
             const { title, content, category, priority, status, reminder } = req.body;
 
             // Validate priority and status if provided
@@ -125,7 +169,10 @@ const noteController = {
             }
 
             const notes = await db.getCollection('notes');
-            const note = await notes.findOne({ _id: new ObjectId(id) });
+            const note = await notes.findOne({ 
+                _id: new ObjectId(id),
+                companyId: companyId.toString()
+            });
             
             if (!note) {
                 return res.status(404).json({ message: 'Note not found' });
@@ -139,11 +186,12 @@ const noteController = {
                 ...(priority && { priority }),
                 ...(status && { status }),
                 ...(reminder && { reminder }),
+                companyId: companyId.toString(), // Ensure company ID doesn't change
                 updatedAt: new Date()
             };
 
             await notes.updateOne(
-                { _id: new ObjectId(id) },
+                { _id: new ObjectId(id), companyId: companyId.toString() },
                 { $set: updateData }
             );
 
@@ -153,6 +201,8 @@ const noteController = {
             if (reminder) {
                 await scheduleReminder(updatedNote);
             }
+            
+            console.log(`Note ${id} updated successfully`);
 
             res.json(updatedNote);
         } catch (error) {
@@ -166,13 +216,41 @@ const noteController = {
      */
     async deleteNote(req, res) {
         try {
+            // Get company ID from authenticated user
+            const companyId = req.user.companyId;
+            
+            if (!companyId) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Company ID not found in user token'
+                });
+            }
+            
             const { id } = req.params;
+            console.log(`Deleting note ${id} for company ID: ${companyId}`);
+            
             const notes = await db.getCollection('notes');
-            const result = await notes.deleteOne({ _id: new ObjectId(id) });
+            
+            // Verify note belongs to company before deleting
+            const noteToDelete = await notes.findOne({
+                _id: new ObjectId(id),
+                companyId: companyId.toString()
+            });
+            
+            if (!noteToDelete) {
+                return res.status(404).json({ message: 'Note not found' });
+            }
+            
+            const result = await notes.deleteOne({ 
+                _id: new ObjectId(id),
+                companyId: companyId.toString()
+            });
             
             if (result.deletedCount === 0) {
                 return res.status(404).json({ message: 'Note not found' });
             }
+            
+            console.log(`Note ${id} deleted successfully`);
 
             res.json({ message: 'Note deleted successfully' });
         } catch (error) {

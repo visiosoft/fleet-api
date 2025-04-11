@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const payrollController = require('../controllers/payrollController');
+const { authenticate } = require('../middleware/auth');
+
+// Apply authentication middleware to all payroll routes
+router.use(authenticate);
 
 // Test route to create a driver
 router.post('/test-driver', payrollController.createTestDriver);

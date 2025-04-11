@@ -7,14 +7,34 @@ const db = require('../config/db');
 // Get all payroll entries
 exports.getAllPayrollEntries = async (req, res) => {
   try {
-    const cursor = await PayrollEntry.find();
-    const payrollEntries = await cursor.toArray();
+    // Get company ID from authenticated user
+    const companyId = req.user.companyId;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Company ID not found in user token'
+      });
+    }
+    
+    console.log(`Fetching payroll entries for company ID: ${companyId}`);
+    
+    // Get the collection
+    const collection = await db.getCollection('payrollentries');
+    
+    // Find entries for this company
+    const payrollEntries = await collection.find({
+      companyId: companyId.toString()
+    }).toArray();
+    
+    console.log(`Found ${payrollEntries.length} payroll entries for company ${companyId}`);
 
     res.json({
       status: 'success',
       data: payrollEntries
     });
   } catch (error) {
+    console.error('Error fetching payroll entries:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to fetch payroll entries',
@@ -26,7 +46,27 @@ exports.getAllPayrollEntries = async (req, res) => {
 // Get a single payroll entry
 exports.getPayrollEntry = async (req, res) => {
   try {
-    const payrollEntry = await PayrollEntry.findById(req.params.id);
+    // Get company ID from authenticated user
+    const companyId = req.user.companyId;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Company ID not found in user token'
+      });
+    }
+    
+    const id = req.params.id;
+    console.log(`Fetching payroll entry ${id} for company ID: ${companyId}`);
+    
+    // Get the collection
+    const collection = await db.getCollection('payrollentries');
+    
+    // Find entry for this company
+    const payrollEntry = await collection.findOne({
+      _id: new ObjectId(id),
+      companyId: companyId.toString()
+    });
 
     if (!payrollEntry) {
       return res.status(404).json({
@@ -34,12 +74,15 @@ exports.getPayrollEntry = async (req, res) => {
         message: 'Payroll entry not found'
       });
     }
+    
+    console.log(`Found payroll entry: ${payrollEntry._id}`);
 
     res.json({
       status: 'success',
       data: payrollEntry
     });
   } catch (error) {
+    console.error('Error fetching payroll entry:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to fetch payroll entry',
@@ -51,13 +94,28 @@ exports.getPayrollEntry = async (req, res) => {
 // Create a new payroll entry
 exports.createPayrollEntry = async (req, res) => {
   try {
+    // Get company ID from authenticated user
+    const companyId = req.user.companyId;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Company ID not found in user token'
+      });
+    }
+    
+    console.log(`Creating payroll entry for company ID: ${companyId}`);
     console.log('Creating payroll entry with data:', req.body); // Debug log
 
+    // Get the collection
+    const collection = await db.getCollection('payrollentries');
+    
     // Check for duplicate entry
-    const existingEntry = await PayrollEntry.findOne({
+    const existingEntry = await collection.findOne({
       driverName: req.body.driverName,
       month: req.body.month.split('-')[1], // Extract month from YYYY-MM format
-      year: parseInt(req.body.month.split('-')[0]) // Extract year from YYYY-MM format
+      year: parseInt(req.body.month.split('-')[0]), // Extract year from YYYY-MM format
+      companyId: companyId.toString()
     });
 
     console.log('Checking for existing entry:', existingEntry); // Debug log
@@ -70,18 +128,26 @@ exports.createPayrollEntry = async (req, res) => {
       });
     }
 
-    // Create payroll entry
-    console.log('Creating new PayrollEntry instance'); // Debug log
-    const payrollEntry = new PayrollEntry(req.body);
-    console.log('PayrollEntry instance created:', payrollEntry); // Debug log
+    // Create payroll entry with company ID
+    const payrollEntry = {
+      ...req.body,
+      companyId: companyId.toString(),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    console.log('PayrollEntry to be saved:', payrollEntry);
 
-    console.log('Attempting to save payroll entry'); // Debug log
-    await payrollEntry.save();
-    console.log('Payroll entry saved successfully'); // Debug log
+    // Insert the entry
+    const result = await collection.insertOne(payrollEntry);
+    console.log('Payroll entry saved successfully with ID:', result.insertedId);
 
     res.status(201).json({
       status: 'success',
-      data: payrollEntry
+      data: {
+        _id: result.insertedId,
+        ...payrollEntry
+      }
     });
   } catch (error) {
     console.error('Error creating payroll entry:', error); // Debug log
@@ -98,15 +164,29 @@ exports.createPayrollEntry = async (req, res) => {
 // Update a payroll entry
 exports.updatePayrollEntry = async (req, res) => {
   try {
+    // Get company ID from authenticated user
+    const companyId = req.user.companyId;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Company ID not found in user token'
+      });
+    }
+    
     const id = req.params.id;
-    console.log('Updating payroll entry with ID:', id);
+    console.log(`Updating payroll entry ${id} for company ID: ${companyId}`);
     console.log('Update data:', req.body);
 
     // Get the collection
     const collection = await db.getCollection('payrollentries');
 
-    // Find the existing entry
-    const existingEntry = await collection.findOne({ _id: new ObjectId(id) });
+    // Find the existing entry and ensure it belongs to this company
+    const existingEntry = await collection.findOne({ 
+      _id: new ObjectId(id),
+      companyId: companyId.toString()
+    });
+    
     if (!existingEntry) {
       return res.status(404).json({
         status: 'error',
@@ -119,7 +199,7 @@ exports.updatePayrollEntry = async (req, res) => {
     const updatedEntry = {
       ...existingEntry,
       ...req.body,
-      _id: new ObjectId(id), // Preserve the original ID
+      companyId: companyId.toString(), // Ensure company ID doesn't change
       updatedAt: new Date()
     };
 
@@ -130,7 +210,7 @@ exports.updatePayrollEntry = async (req, res) => {
 
     // Update the entry
     const result = await collection.updateOne(
-      { _id: new ObjectId(id) },
+      { _id: new ObjectId(id), companyId: companyId.toString() },
       { $set: updatedEntry }
     );
 
@@ -162,7 +242,27 @@ exports.updatePayrollEntry = async (req, res) => {
 // Delete a payroll entry
 exports.deletePayrollEntry = async (req, res) => {
   try {
-    const payrollEntry = await PayrollEntry.findById(req.params.id);
+    // Get company ID from authenticated user
+    const companyId = req.user.companyId;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Company ID not found in user token'
+      });
+    }
+    
+    const id = req.params.id;
+    console.log(`Deleting payroll entry ${id} for company ID: ${companyId}`);
+    
+    // Get the collection
+    const collection = await db.getCollection('payrollentries');
+    
+    // Find the entry and ensure it belongs to this company
+    const payrollEntry = await collection.findOne({
+      _id: new ObjectId(id),
+      companyId: companyId.toString()
+    });
 
     if (!payrollEntry) {
       return res.status(404).json({
@@ -171,13 +271,18 @@ exports.deletePayrollEntry = async (req, res) => {
       });
     }
 
-    await payrollEntry.remove();
+    // Delete the entry
+    await collection.deleteOne({
+      _id: new ObjectId(id),
+      companyId: companyId.toString()
+    });
 
     res.json({
       status: 'success',
       message: 'Payroll entry deleted successfully'
     });
   } catch (error) {
+    console.error('Error deleting payroll entry:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to delete payroll entry',
@@ -189,8 +294,27 @@ exports.deletePayrollEntry = async (req, res) => {
 // Get payroll summary
 exports.getPayrollSummary = async (req, res) => {
   try {
-    const cursor = await PayrollEntry.find();
-    const entries = await cursor.toArray();
+    // Get company ID from authenticated user
+    const companyId = req.user.companyId;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Company ID not found in user token'
+      });
+    }
+    
+    console.log(`Fetching payroll summary for company ID: ${companyId}`);
+    
+    // Get the collection
+    const collection = await db.getCollection('payrollentries');
+    
+    // Find entries for this company
+    const entries = await collection.find({
+      companyId: companyId.toString()
+    }).toArray();
+    
+    console.log(`Found ${entries.length} payroll entries for summary`);
 
     // Calculate summary
     const summary = entries.reduce((acc, entry) => {
@@ -239,6 +363,18 @@ exports.getPayrollSummary = async (req, res) => {
 // Export payroll data
 exports.exportPayroll = async (req, res) => {
   try {
+    // Get company ID from authenticated user
+    const companyId = req.user.companyId;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Company ID not found in user token'
+      });
+    }
+    
+    console.log(`Exporting payroll data for company ID: ${companyId}`);
+    
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Payroll Data');
 
@@ -254,17 +390,23 @@ exports.exportPayroll = async (req, res) => {
       { header: 'Net Pay', key: 'netPay', width: 15 }
     ];
 
-    // Get all payroll entries
-    const cursor = await PayrollEntry.find();
-    const payrollEntries = await cursor.toArray();
+    // Get the collection
+    const collection = await db.getCollection('payrollentries');
+    
+    // Get all payroll entries for this company
+    const payrollEntries = await collection.find({
+      companyId: companyId.toString()
+    }).toArray();
+    
+    console.log(`Found ${payrollEntries.length} payroll entries for export`);
 
     // Add data rows
     payrollEntries.forEach(entry => {
       worksheet.addRow({
         month: entry.month,
         year: entry.year,
-        driverName: `${entry.driverId.firstName} ${entry.driverId.lastName}`,
-        employeeId: entry.driverId.employeeId,
+        driverName: entry.driverName,
+        employeeId: entry.employeeId,
         basicSalary: entry.basicSalary,
         allowances: entry.allowances,
         deductions: entry.deductions,
@@ -286,6 +428,7 @@ exports.exportPayroll = async (req, res) => {
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
+    console.error('Error exporting payroll data:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to export payroll data',
@@ -297,20 +440,38 @@ exports.exportPayroll = async (req, res) => {
 // Get all drivers for dropdown
 exports.getDrivers = async (req, res) => {
   try {
-    const cursor = await Driver.find();
-    const drivers = await cursor.toArray();
+    // Get company ID from authenticated user
+    const companyId = req.user.companyId;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Company ID not found in user token'
+      });
+    }
+    
+    console.log(`Fetching drivers for company ID: ${companyId}`);
+    
+    // Get the collection
+    const driversCollection = await db.getCollection('drivers');
+    
+    // Get drivers for this company
+    const drivers = await driversCollection.find({
+      companyId: companyId.toString()
+    }).toArray();
+    
+    console.log(`Found ${drivers.length} drivers for company ${companyId}`);
 
     // Format drivers for dropdown
     const formattedDrivers = drivers.map(driver => {
-      const driverObj = driver.toJSON();
       return {
-        _id: driverObj._id.toString(),
-        label: `${driverObj.firstName} ${driverObj.lastName}`,
-        value: driverObj._id.toString(),
-        employeeId: driverObj.employeeId,
-        status: driverObj.status,
-        firstName: driverObj.firstName,
-        lastName: driverObj.lastName
+        _id: driver._id.toString(),
+        label: `${driver.firstName} ${driver.lastName}`,
+        value: driver._id.toString(),
+        employeeId: driver.employeeId,
+        status: driver.status,
+        firstName: driver.firstName,
+        lastName: driver.lastName
       };
     });
 
@@ -334,7 +495,22 @@ exports.getDrivers = async (req, res) => {
 // Test endpoint to create a driver
 exports.createTestDriver = async (req, res) => {
   try {
-    const testDriver = new Driver({
+    // Get company ID from authenticated user
+    const companyId = req.user.companyId;
+    
+    if (!companyId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Company ID not found in user token'
+      });
+    }
+    
+    console.log(`Creating test driver for company ID: ${companyId}`);
+    
+    // Get the collection
+    const driversCollection = await db.getCollection('drivers');
+    
+    const testDriver = {
       firstName: 'Test',
       lastName: 'Driver',
       employeeId: 'TEST001',
@@ -342,10 +518,16 @@ exports.createTestDriver = async (req, res) => {
       contactNumber: '1234567890',
       email: 'test@example.com',
       licenseNumber: 'TEST123',
-      licenseExpiry: new Date('2025-12-31')
-    });
+      licenseExpiry: new Date('2025-12-31'),
+      companyId: companyId.toString(),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
 
-    await testDriver.save();
+    const result = await driversCollection.insertOne(testDriver);
+    testDriver._id = result.insertedId;
+    
+    console.log(`Test driver created with ID: ${result.insertedId}`);
     
     res.status(201).json({
       status: 'success',

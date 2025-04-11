@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const noteController = require('../controllers/noteController');
+const { authenticate } = require('../middleware/auth');
+
+// Apply authentication middleware to all note routes
+router.use(authenticate);
 
 /**
  * @swagger
