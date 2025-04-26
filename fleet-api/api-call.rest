@@ -15,24 +15,25 @@ Content-Type: application/json
 
 {
   "companyData": {
-    "name": "My Fleet Company 2",
+    "name": "My Fleet Company 23",
     "address": "123 Fleet Street",
     "city": "New York",
     "state": "NY",
     "zipCode": "10001",
     "phone": "555-123-4567",
-    "email": "contact@myfleet2.com",
+    "email": "contact@myfleet23.com",
     "status": "active"
   },
   "adminData": {
-    "firstName": "Admin",
+    "firstName": "Admin 23",
     "lastName": "User",
-    "email": "admin@myfleet2.com",
-    "password": "Admin@123",
+    "email": "admin@myfleet23.com",
+    "password": "Admin@12323",
     "phone": "555-987-6543"
   }
 }
-
+###
+# Use dev.xulfi@gmail.com / 123456
 ### Login
 POST {{baseUrl}}/auth/login
 Content-Type: application/json

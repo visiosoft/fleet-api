@@ -17,6 +17,7 @@ const companySettingsRoutes = require('./routes/companyProfileRoutes');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
+const noteRoutes = require('./routes/noteRoutes');
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -25,6 +26,7 @@ app.use('/api/fuel', fuelRoutes);
 app.use('/api/company', companySettingsRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/notes', noteRoutes);
 
 // MongoDB connection
 mongoose.connect('mongodb+srv://devxulfiqar:nSISUpLopruL7S8j@mypaperlessoffice.z5g84.mongodb.net/fleet-management?retryWrites=true&w=majority', {

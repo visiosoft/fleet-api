@@ -982,6 +982,125 @@ Creates a new user for the company.
   }
   ```
 
+## Notes Management
+
+### Get All Notes
+
+Retrieves all notes for the company.
+
+- **URL:** `/api/notes`
+- **Method:** `GET`
+- **Authentication:** Required
+- **Response (200):**
+  ```json
+  {
+    "notes": [
+      {
+        "_id": "NOTE_ID",
+        "title": "Note Title",
+        "content": "Note content text",
+        "category": "General",
+        "priority": "medium",
+        "status": "active",
+        "reminder": {
+          "date": "2023-08-15T10:00:00.000Z",
+          "whatsappNumber": "+1234567890"
+        },
+        "companyId": "COMPANY_ID",
+        "createdAt": "2023-07-15T16:30:00.000Z",
+        "updatedAt": "2023-07-15T16:30:00.000Z"
+      }
+    ]
+  }
+  ```
+
+### Create Note
+
+Creates a new note.
+
+- **URL:** `/api/notes`
+- **Method:** `POST`
+- **Authentication:** Required
+- **Request Body:**
+  ```json
+  {
+    "title": "Note Title",
+    "content": "Note content text",
+    "category": "General",
+    "priority": "medium",
+    "status": "active",
+    "reminder": {
+      "date": "2023-08-15T10:00:00",
+      "whatsappNumber": "+1234567890"
+    }
+  }
+  ```
+- **Response (201):**
+  ```json
+  {
+    "_id": "NOTE_ID",
+    "title": "Note Title",
+    "content": "Note content text",
+    "category": "General",
+    "priority": "medium",
+    "status": "active",
+    "reminder": {
+      "date": "2023-08-15T10:00:00.000Z",
+      "whatsappNumber": "+1234567890"
+    },
+    "companyId": "COMPANY_ID",
+    "createdAt": "2023-07-15T16:30:00.000Z",
+    "updatedAt": "2023-07-15T16:30:00.000Z"
+  }
+  ```
+
+### Update Note
+
+Updates an existing note.
+
+- **URL:** `/api/notes/:id`
+- **Method:** `PUT`
+- **Authentication:** Required
+- **Request Body:**
+  ```json
+  {
+    "title": "Updated Title",
+    "content": "Updated content text",
+    "category": "General",
+    "priority": "high",
+    "status": "active"
+  }
+  ```
+- **Response (200):**
+  ```json
+  {
+    "_id": "NOTE_ID",
+    "title": "Updated Title",
+    "content": "Updated content text",
+    "category": "General",
+    "priority": "high",
+    "status": "active",
+    "reminder": null,
+    "companyId": "COMPANY_ID",
+    "createdAt": "2023-07-15T16:30:00.000Z",
+    "updatedAt": "2023-07-15T17:45:00.000Z"
+  }
+  ```
+
+### Delete Note
+
+Deletes a note.
+
+- **URL:** `/api/notes/:id`
+- **Method:** `DELETE`
+- **Authentication:** Required
+- **Response (200):**
+  ```json
+  {
+    "message": "Note deleted successfully"
+  }
+  ```
+
 ## Health Check
 
 ### API Health Check
