@@ -9,7 +9,7 @@ require('dotenv').config();
 const mockData = require('./mock-data');
 
 // MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_URI = "mongodb+srv://devxulfiqar:nSISUpLopruL7S8j@mypaperlessoffice.z5g84.mongodb.net/?retryWrites=true&w=majority&appName=mypaperlessofficet-management" ;
 const DB_NAME = process.env.DB_NAME || 'fleet-management';
 
 // MongoDB connection options
