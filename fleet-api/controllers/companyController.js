@@ -1,5 +1,5 @@
 const { ObjectId } = require('mongodb');
-const CompanyModel = require('../models/CompanyModel');
+const CompanyModel = require('../models/companyModel');
 const UserModel = require('../models/UserModel');
 
 // Get all companies
