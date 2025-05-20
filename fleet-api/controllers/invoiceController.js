@@ -25,11 +25,17 @@ exports.getAllInvoices = async (req, res) => {
             .sort({ createdAt: -1 })
             .toArray();
         
+        // Ensure includeVat is included in response
+        const formattedInvoices = invoices.map(invoice => ({
+            ...invoice,
+            includeVat: invoice.includeVat !== false // default to true if not set
+        }));
+        
         console.log(`Found ${invoices.length} invoices for company ${companyId}`);
         
         res.status(200).json({
             status: 'success',
-            data: invoices
+            data: formattedInvoices
         });
     } catch (error) {
         console.error('Error getting all invoices:', error);
@@ -69,11 +75,17 @@ exports.getInvoiceById = async (req, res) => {
             });
         }
         
+        // Ensure includeVat is included in response
+        const formattedInvoice = {
+            ...invoice,
+            includeVat: invoice.includeVat !== false // default to true if not set
+        };
+        
         console.log(`Found invoice ${id}`);
 
         res.status(200).json({
             status: 'success',
-            data: invoice
+            data: formattedInvoice
         });
     } catch (error) {
         console.error('Error getting invoice by ID:', error);
@@ -99,7 +111,7 @@ exports.createInvoice = async (req, res) => {
         
         console.log(`Creating invoice for company ID: ${companyId}`);
         
-        const { contractId, invoiceNumber, issueDate, dueDate, items, tax, notes } = req.body;
+        const { contractId, invoiceNumber, issueDate, dueDate, items, tax, includeVat, notes } = req.body;
 
         // Check if contract exists and belongs to company
         const contractCollection = await ContractModel.getCollection();
@@ -135,7 +147,8 @@ exports.createInvoice = async (req, res) => {
             issueDate,
             dueDate,
             items,
-            tax,
+            tax: includeVat ? (tax || 0) : 0,
+            includeVat: includeVat !== false, // default to true if not specified
             notes,
             status: 'draft',
             companyId: companyId.toString(),
@@ -191,12 +204,16 @@ exports.updateInvoice = async (req, res) => {
         }
 
         // Only allow updating certain fields
-        const allowedUpdates = ['items', 'subtotal', 'tax', 'total', 'notes', 'status'];
+        const allowedUpdates = ['items', 'subtotal', 'tax', 'includeVat', 'total', 'notes', 'status'];
         const updates = Object.keys(req.body).filter(key => allowedUpdates.includes(key));
         
         const updateData = {};
         updates.forEach(update => {
-            updateData[update] = req.body[update];
+            if (update === 'tax' && !req.body.includeVat) {
+                updateData[update] = 0;
+            } else {
+                updateData[update] = req.body[update];
+            }
         });
         updateData.updatedAt = new Date();
         updateData.companyId = companyId.toString(); // Ensure company ID doesn't change
@@ -215,11 +232,17 @@ exports.updateInvoice = async (req, res) => {
 
         const updatedInvoice = await collection.findOne({ _id: new ObjectId(id) });
         
+        // Ensure includeVat is included in response
+        const formattedInvoice = {
+            ...updatedInvoice,
+            includeVat: updatedInvoice.includeVat !== false // default to true if not set
+        };
+        
         console.log(`Invoice ${id} updated successfully`);
 
         res.status(200).json({
             status: 'success',
-            data: updatedInvoice
+            data: formattedInvoice
         });
     } catch (error) {
         console.error('Error updating invoice:', error);
@@ -467,9 +490,15 @@ exports.getInvoicesByContract = async (req, res) => {
         .sort({ createdAt: -1 })
         .toArray();
 
+        // Ensure includeVat is included in response
+        const formattedInvoices = invoices.map(invoice => ({
+            ...invoice,
+            includeVat: invoice.includeVat !== false // default to true if not set
+        }));
+
         res.status(200).json({
             status: 'success',
-            data: invoices
+            data: formattedInvoices
         });
     } catch (error) {
         console.error('Error getting invoices by contract:', error);

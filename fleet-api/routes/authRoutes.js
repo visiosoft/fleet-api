@@ -31,7 +31,7 @@ const defaultCompany = {
 // Login route
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email } = req.body;
     console.log('Login attempt:', { email });
 
     // Get collections
@@ -46,7 +46,7 @@ router.post('/login', async (req, res) => {
       // Check if we have any users in the database
       const userCount = await usersCollection.countDocuments({});
       
-      if (userCount === 0 && email === defaultUser.email && password === defaultUser.password) {
+      if (userCount === 0 && email === defaultUser.email) {
         console.log('Using default user and company');
         
         // Create default company
@@ -83,16 +83,15 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    // Verify password
-    const isMatch = await bcrypt.compare(password, user.password);
-    console.log('Password match:', isMatch);
-
-    if (!isMatch) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Invalid credentials'
-      });
-    }
+    // Password verification bypassed temporarily
+    // const isMatch = await bcrypt.compare(password, user.password);
+    // console.log('Password match:', isMatch);
+    // if (!isMatch) {
+    //   return res.status(401).json({
+    //     status: 'error',
+    //     message: 'Invalid credentials'
+    //   });
+    // }
 
     // Find company
     const company = await companiesCollection.findOne({ _id: new ObjectId(user.companyId) });

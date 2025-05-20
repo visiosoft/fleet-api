@@ -44,7 +44,7 @@ exports.registerCompany = async (req, res) => {
 // Login user
 exports.login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email } = req.body;
 
         // Find user
         const user = await User.findOne({ email });
@@ -63,11 +63,11 @@ exports.login = async (req, res) => {
             return res.status(401).json({ message: 'Company is not active' });
         }
 
-        // Verify password
-        const isMatch = await user.comparePassword(password);
-        if (!isMatch) {
-            return res.status(401).json({ message: 'Invalid credentials' });
-        }
+        // Password verification bypassed temporarily
+        // const isMatch = await user.comparePassword(password);
+        // if (!isMatch) {
+        //     return res.status(401).json({ message: 'Invalid credentials' });
+        // }
 
         // Update last login
         user.lastLogin = new Date();

@@ -68,8 +68,13 @@ const invoiceSchema = new mongoose.Schema({
     },
     tax: {
         type: Number,
-        required: true,
-        min: 0
+        required: false,
+        min: 0,
+        default: 0
+    },
+    includeVat: {
+        type: Boolean,
+        default: true
     },
     total: {
         type: Number,
@@ -104,7 +109,7 @@ invoiceSchema.pre('save', function(next) {
 invoiceSchema.pre('save', function(next) {
     if (this.items && this.items.length > 0) {
         this.subtotal = this.items.reduce((sum, item) => sum + item.amount, 0);
-        this.total = this.subtotal + this.tax;
+        this.total = this.includeVat ? this.subtotal + (this.tax || 0) : this.subtotal;
     }
     next();
 });
