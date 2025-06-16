@@ -20,6 +20,7 @@ const noteRoutes = require('./routes/noteRoutes');
 const payrollRoutes = require('./routes/payrollRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const companyRoutes = require('./routes/companyRoutes');
+const receiptRoutes = require('./routes/receiptRoutes');
 
 // Initialize Express app
 const app = express();
@@ -52,11 +53,13 @@ app.use('/api/notes', noteRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/companies', companyRoutes);
+app.use('/api/receipts', receiptRoutes);
 
 // Generic API routes for other collections
 const COLLECTIONS = db.COLLECTIONS;
 delete COLLECTIONS.drivers; // We have a dedicated route for drivers
 delete COLLECTIONS.expenses; // We have a dedicated route for expenses
+delete COLLECTIONS.receipts; // We have a dedicated route for receipts
 
 Object.entries(COLLECTIONS).forEach(([key, collectionName]) => {
   // Get all documents

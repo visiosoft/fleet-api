@@ -36,7 +36,11 @@ const COLLECTIONS = {
     expenses: 'expenses',
     companies: 'companies',
     users: 'users',
-    payrollentries: 'payrollentries'
+    payrollentries: 'payrollentries',
+    notes: 'notes',
+    payroll: 'payroll',
+    invoices: 'invoices',
+    receipts: 'receipts'
 };
 
 // DB connection instance

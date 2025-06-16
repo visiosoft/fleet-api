@@ -204,7 +204,7 @@ exports.updateInvoice = async (req, res) => {
         }
 
         // Only allow updating certain fields
-        const allowedUpdates = ['items', 'subtotal', 'tax', 'includeVat', 'total', 'notes', 'status'];
+        const allowedUpdates = ['items', 'subtotal', 'tax', 'includeVat', 'total', 'notes', 'status', 'issueDate', 'dueDate'];
         const updates = Object.keys(req.body).filter(key => allowedUpdates.includes(key));
         
         const updateData = {};
