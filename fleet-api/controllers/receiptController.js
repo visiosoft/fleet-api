@@ -122,7 +122,8 @@ exports.createReceipt = async (req, res) => {
             referenceNumber,
             notes,
             clientName,
-            clientEmail = '' // Make email optional with default empty string
+            clientEmail = '', // Make email optional with default empty string
+            status = 'completed' // Default status
         } = req.body;
 
         // Generate receipt number (you can customize this format)
@@ -138,7 +139,7 @@ exports.createReceipt = async (req, res) => {
             notes,
             clientName,
             clientEmail,
-            status: 'completed',
+            status, // Add status field
             companyId: companyId.toString(),
             companyInfo: {
                 name: 'Fleeto',
@@ -188,7 +189,8 @@ exports.updateReceipt = async (req, res) => {
             referenceNumber,
             notes,
             clientName,
-            clientEmail
+            clientEmail,
+            status // Add status field
         } = req.body;
 
         const updateData = {
@@ -199,6 +201,7 @@ exports.updateReceipt = async (req, res) => {
             ...(notes && { notes }),
             ...(clientName && { clientName }),
             ...(clientEmail && { clientEmail }),
+            ...(status && { status }), // Add status to update data
             updatedAt: new Date()
         };
 
